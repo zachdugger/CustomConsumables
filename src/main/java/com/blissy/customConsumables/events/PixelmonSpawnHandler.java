@@ -4,12 +4,15 @@ import com.blissy.customConsumables.CustomConsumables;
 import com.blissy.customConsumables.compat.PixelmonIntegration;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.player.ServerPlayerEntity;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.text.StringTextComponent;
 import net.minecraft.util.text.TextFormatting;
+import net.minecraft.world.server.ServerWorld;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.LogicalSide;
 import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.server.ServerLifecycleHooks;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -21,7 +24,7 @@ import java.util.UUID;
  * It handles:
  * - Legendary spawns (base 30% with lure boosting to 100%)
  * - Shiny spawns (base 1/4096 with charm boosting to 50%)
- * - Type-specific spawns (boosted by 500% for specific types)
+ * - Type-specific spawns (boosted by 1000% for specific types)
  */
 @Mod.EventBusSubscriber(modid = CustomConsumables.MOD_ID)
 public class PixelmonSpawnHandler {
@@ -34,6 +37,10 @@ public class PixelmonSpawnHandler {
     // Track players that are in test mode
     private static final Map<UUID, Integer> testModeDuration = new HashMap<>();
     private static int tickCounter = 0;
+
+    // Track spawn attempts to prevent spamming
+    private static final Map<UUID, Integer> typeSpawnCooldowns = new HashMap<>();
+    private static final int TYPE_SPAWN_COOLDOWN = 100; // 5 seconds (100 ticks)
 
     /**
      * Main tick event handler to process spawn rate modifications
@@ -50,6 +57,9 @@ public class PixelmonSpawnHandler {
         if (tickCounter % 5 == 0) {
             // Update test mode timers
             updateTestModes();
+
+            // Update cooldowns
+            updateCooldowns();
         }
     }
 
@@ -74,6 +84,81 @@ public class PixelmonSpawnHandler {
                 forceSpawnTick(event.player);
             }
         }
+
+        // Handle active type boost effects
+        PlayerEntity player = event.player;
+        if (PixelmonIntegration.hasTypeBoost(player)) {
+            // Get boost info
+            String boostedType = PixelmonIntegration.getBoostedType(player);
+            int remainingDuration = PixelmonIntegration.getTypeBoostDuration(player);
+
+            // Every 100 ticks (5 seconds), try to force a spawn of the boosted type
+            if (remainingDuration > 0 && tickCounter % 100 == 0) {
+                UUID playerId = player.getUUID();
+
+                // Check cooldown
+                if (!typeSpawnCooldowns.containsKey(playerId) || typeSpawnCooldowns.get(playerId) <= 0) {
+                    // Try to force spawn the boosted type
+                    forceTypeSpawn(player, boostedType);
+
+                    // Set cooldown
+                    typeSpawnCooldowns.put(playerId, TYPE_SPAWN_COOLDOWN);
+                }
+
+                // Create visual indicator particles to show the effect is active
+                if (player instanceof ServerPlayerEntity) {
+                    ServerWorld world = ((ServerPlayerEntity)player).getLevel();
+
+                    // Send particles in a spiral around the player
+                    double radius = 1.5;
+                    for (int i = 0; i < 16; i++) {
+                        double angle = (i / 16.0) * Math.PI * 2;
+                        double x = player.getX() + Math.cos(angle) * radius;
+                        double z = player.getZ() + Math.sin(angle) * radius;
+
+                        world.sendParticles(
+                                net.minecraft.particles.ParticleTypes.WITCH,
+                                x, player.getY() + 0.5, z,
+                                1, 0, 0, 0, 0.05
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Force a spawn of the specified type near the player
+     */
+    private static void forceTypeSpawn(PlayerEntity player, String type) {
+        if (!PixelmonIntegration.isPixelmonLoaded() || player == null) {
+            return;
+        }
+
+        MinecraftServer server = player instanceof ServerPlayerEntity
+                ? ((ServerPlayerEntity)player).getServer()
+                : ServerLifecycleHooks.getCurrentServer();
+
+        if (server != null) {
+            try {
+                // Execute the command to spawn a Pokémon of the specified type
+                server.getCommands().performCommand(
+                        server.createCommandSourceStack().withPermission(4),
+                        "pokespawn " + type.toLowerCase()
+                );
+
+                CustomConsumables.getLogger().debug(
+                        "Forced spawn of {} type Pokémon near player {}",
+                        type, player.getName().getString()
+                );
+            } catch (Exception e) {
+                // Just log at debug level, this is a supplementary feature
+                CustomConsumables.getLogger().debug(
+                        "Failed to force spawn {} type: {}",
+                        type, e.getMessage()
+                );
+            }
+        }
     }
 
     /**
@@ -92,6 +177,21 @@ public class PixelmonSpawnHandler {
                 return true; // Remove from map
             } else {
                 entry.setValue(remainingTime);
+                return false;
+            }
+        });
+    }
+
+    /**
+     * Update cooldown timers
+     */
+    private static void updateCooldowns() {
+        typeSpawnCooldowns.entrySet().removeIf(entry -> {
+            int remaining = entry.getValue() - 5;
+            if (remaining <= 0) {
+                return true; // Remove from map
+            } else {
+                entry.setValue(remaining);
                 return false;
             }
         });
@@ -219,44 +319,35 @@ public class PixelmonSpawnHandler {
             String boostedType = PixelmonIntegration.getBoostedType(player);
             float multiplier = PixelmonIntegration.getTypeBoostMultiplier(player, 1.0f);
 
-            // If multiplier is very high (5x in this case), we should ONLY spawn the boosted type
-            // and reject other types
-            if (multiplier >= 5.0f) {
-                // If this is the boosted type, always spawn it
-                if (boostedType.equalsIgnoreCase(pokemonType)) {
-                    CustomConsumables.getLogger().info(
-                            "Player {} type boost active. Allowing {} type to spawn (exclusively)",
-                            player.getName().getString(), pokemonType
-                    );
-                    return true; // SPAWN THIS TYPE
-                } else {
-                    CustomConsumables.getLogger().info(
-                            "Player {} type boost active. Blocking {} type (only {} allowed)",
+            // If this is the boosted type, dramatically increase its chance to spawn
+            if (boostedType.equalsIgnoreCase(pokemonType)) {
+                // Always allow this type to spawn
+                CustomConsumables.getLogger().debug(
+                        "Player {} type boost active. Prioritizing {} type to spawn",
+                        player.getName().getString(), pokemonType
+                );
+                return true; // SPAWN THIS TYPE
+            } else if (multiplier >= 5.0f) {
+                // For very high multipliers (5x or more), block other types 75% of the time
+                float roll = random.nextFloat();
+                boolean shouldBlock = roll <= 0.85f;
+
+                if (shouldBlock) {
+                    CustomConsumables.getLogger().debug(
+                            "Player {} type boost active. Blocking {} type (prioritizing {})",
                             player.getName().getString(), pokemonType, boostedType
                     );
-                    return false; // DON'T SPAWN OTHER TYPES
-                }
-            }
-            // For lower multipliers, boost the chance of the selected type
-            else {
-                // If this is the boosted type, increase its chance
-                if (boostedType.equalsIgnoreCase(pokemonType)) {
-                    float roll = random.nextFloat();
-                    boolean boost = roll <= 0.8f; // 80% chance to select the boosted type
-
-                    if (boost) {
-                        CustomConsumables.getLogger().info(
-                                "Player {} type boost active. Boosting {} type spawn chance",
-                                player.getName().getString(), pokemonType
-                        );
-                    }
-
-                    return boost;
+                    return false; // BLOCK OTHER TYPES 85% OF THE TIME
+                } else {
+                    CustomConsumables.getLogger().debug(
+                            "Player {} type boost active. Allowing non-boosted {} type (15% chance)",
+                            player.getName().getString(), pokemonType
+                    );
                 }
             }
         }
 
-        return null; // No boost active or not applicable
+        return null; // Default behavior
     }
 
     /**
@@ -320,9 +411,18 @@ public class PixelmonSpawnHandler {
 
         if (PixelmonIntegration.hasTypeBoost(player)) {
             String boostedType = PixelmonIntegration.getBoostedType(player);
+            float multiplier = PixelmonIntegration.getTypeBoostMultiplier(player, 1.0f);
 
-            // With 500% multiplier, ONLY spawn the boosted type
-            return boostedType.equalsIgnoreCase(pokemonType);
+            // If this is the boosted type, allow it
+            if (boostedType.equalsIgnoreCase(pokemonType)) {
+                return true;
+            }
+
+            // With 1000% multiplier (10x), block most non-matching types
+            float roll = random.nextFloat();
+            boolean allowSpawn = roll > 0.85f; // Only allow 15% of non-matching types
+
+            return allowSpawn;
         }
 
         return true; // No type filter active

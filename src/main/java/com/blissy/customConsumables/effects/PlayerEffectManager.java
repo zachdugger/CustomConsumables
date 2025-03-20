@@ -8,7 +8,9 @@ import net.minecraft.entity.player.ServerPlayerEntity;
 import net.minecraft.nbt.CompoundNBT;
 import net.minecraft.util.text.StringTextComponent;
 import net.minecraft.util.text.TextFormatting;
+import net.minecraft.world.World;
 
+import javax.annotation.Nullable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
@@ -366,6 +368,49 @@ public class PlayerEffectManager {
         return "";
     }
 
+    /**
+     * Determines if a specific Pokémon type should be spawned
+     * based on player's active type attractor effect.
+     *
+     * @param player The player to check for effects
+     * @param pokemonType The type of the Pokémon being considered for spawn
+     * @return true if the type should be spawned, false otherwise
+     */
+    public static boolean shouldSpawnType(PlayerEntity player, String pokemonType) {
+        if (player == null) return true;
+
+        boolean hasTypeEffect = hasTypeAttractorEffect(player);
+        if (!hasTypeEffect) return true; // Allow all types if no effect
+
+        String boostedType = getTypeAttractorType(player);
+        float multiplier = getTypeAttractorChance(player, 0) / 100.0f; // Convert to multiplier
+
+        // For high multiplier, HEAVILY prioritize the boosted type
+        if (multiplier >= 5.0f) {
+            boolean isMatch = boostedType.equalsIgnoreCase(pokemonType);
+
+            if (isMatch) {
+                // Always allow the boosted type
+                return true;
+            } else {
+                // Block other types with 85% probability for a strong boost effect
+                float roll = random.nextFloat();
+                return roll > 0.85f; // Only allow 15% of other types to spawn
+            }
+        }
+
+        // For smaller multipliers, boost the chance but don't block other types as aggressively
+        if (boostedType.equalsIgnoreCase(pokemonType)) {
+            // This is the boosted type, give it a higher chance
+            return true; // Always allow the boosted type
+        }
+
+        // For non-boosted types with small multiplier
+        // Allow them at a reduced rate
+        float roll = random.nextFloat();
+        return roll <= (1.0f / multiplier); // Inverse relation to multiplier
+    }
+
     //
     // Legacy Methods for Compatibility
     //
@@ -639,57 +684,5 @@ public class PlayerEffectManager {
         }
 
         return success;
-    }
-
-    /**
-     * Determines if a specific Pokémon type should be spawned
-     * based on player's active type attractor effect.
-     *
-     * @param player The player to check for effects
-     * @param pokemonType The type of the Pokémon being considered for spawn
-     * @return true if the type should be spawned, false otherwise
-     */
-    public static boolean shouldSpawnType(PlayerEntity player, String pokemonType) {
-        if (player == null) return true;
-
-        boolean hasTypeEffect = hasTypeAttractorEffect(player);
-        if (!hasTypeEffect) return true; // Allow all types if no effect
-
-        String boostedType = getTypeAttractorType(player);
-        float multiplier = getTypeAttractorChance(player, 0) / 100.0f; // Convert to multiplier
-
-        // For 5x multiplier, ONLY spawn the boosted type
-        if (multiplier >= 5.0f) {
-            boolean isMatch = boostedType.equalsIgnoreCase(pokemonType);
-
-            if (isMatch && player instanceof ServerPlayerEntity) {
-                // Debug message for matching type
-                CustomConsumables.getLogger().info(
-                        "Player {} type attractor allowing {} type (matches {})",
-                        player.getName().getString(), pokemonType, boostedType
-                );
-            } else if (!isMatch) {
-                // Debug message for non-matching type
-                CustomConsumables.getLogger().debug(
-                        "Player {} type attractor blocking {} type (only {} allowed)",
-                        player.getName().getString(), pokemonType, boostedType
-                );
-            }
-
-            return isMatch;
-        }
-
-        // For smaller multipliers, boost the chance but don't block other types
-        if (boostedType.equalsIgnoreCase(pokemonType)) {
-            // This is the boosted type, give it a higher chance
-            // We'll implement this by returning true more often for this type
-            float roll = random.nextFloat();
-            return roll <= 0.8f; // 80% chance to allow boosted type
-        }
-
-        // For non-boosted types with small multiplier
-        // Allow them but at reduced rate
-        float roll = random.nextFloat();
-        return roll <= (1.0f / multiplier); // Inverse relation to multiplier
     }
 }

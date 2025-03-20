@@ -1,6 +1,8 @@
 package com.blissy.customConsumables.items;
 
 import com.blissy.customConsumables.CustomConsumables;
+import com.blissy.customConsumables.effects.PlayerEffectManager;
+import com.blissy.customConsumables.compat.PixelmonIntegration;
 import com.blissy.customConsumables.init.ItemInit;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.entity.LivingEntity;
@@ -55,7 +57,7 @@ public class TypeAttractorItem extends Item {
             String typeName = type.substring(0, 1).toUpperCase() + type.substring(1).toLowerCase();
 
             try {
-                // Apply the type boost directly through commands and NBT
+                // Apply the type boost through all available methods for maximum compatibility
                 applyTypeBoost(player, type, DEFAULT_DURATION * 20); // Convert to ticks
 
                 // Notify the player
@@ -64,6 +66,14 @@ public class TypeAttractorItem extends Item {
                                 TextFormatting.GREEN + "You consumed a " + typeName + " Type Attractor! " +
                                         TextFormatting.YELLOW + "For the next " + DEFAULT_DURATION + " seconds, " +
                                         typeName + " type Pokémon are " + (int)(BOOST_MULTIPLIER * 100) + "% more likely to spawn!"
+                        ),
+                        true
+                );
+
+                // Show secondary message about how it works
+                player.displayClientMessage(
+                        new StringTextComponent(
+                                TextFormatting.AQUA + "Other Pokémon types will be significantly reduced to make way for " + typeName + " types!"
                         ),
                         true
                 );
@@ -80,8 +90,29 @@ public class TypeAttractorItem extends Item {
                 // Create a visual effect
                 if (player.level instanceof ServerWorld) {
                     ServerWorld serverWorld = (ServerWorld) player.level;
+
+                    // Create a spiral pattern of particles
+                    double radius = 1.0;
+                    double height = 0;
+
+                    for (int i = 0; i < 50; i++) {
+                        double angle = i * 0.2;
+                        double x = player.getX() + Math.cos(angle) * radius;
+                        double z = player.getZ() + Math.sin(angle) * radius;
+
+                        serverWorld.sendParticles(
+                                net.minecraft.particles.ParticleTypes.WITCH,
+                                x, player.getY() + height, z,
+                                1, 0, 0.1, 0, 0.01
+                        );
+
+                        radius += 0.05;
+                        height += 0.05;
+                    }
+
+                    // Add some enchantment particles as well
                     serverWorld.sendParticles(
-                            net.minecraft.particles.ParticleTypes.ENTITY_EFFECT,
+                            net.minecraft.particles.ParticleTypes.ENCHANT,
                             player.getX(), player.getY() + 1, player.getZ(),
                             30, 0.5, 0.5, 0.5, 0.05
                     );
@@ -114,21 +145,30 @@ public class TypeAttractorItem extends Item {
     }
 
     /**
-     * Apply a boost to the specified Pokémon type
+     * Apply a boost to the specified Pokémon type using multiple strategies
+     * for maximum compatibility with different Pixelmon versions
      */
     private void applyTypeBoost(ServerPlayerEntity player, String type, int durationTicks) {
-        // Store in player NBT data
+        // 1. Store in player NBT data (our custom implementation)
         CompoundNBT playerData = player.getPersistentData();
-        CompoundNBT modData = new CompoundNBT();
+        CompoundNBT modData = playerData.contains(CustomConsumables.MOD_ID) ?
+                playerData.getCompound(CustomConsumables.MOD_ID) : new CompoundNBT();
 
         modData.putString("boostedType", type.toLowerCase());
         modData.putInt("boostDuration", durationTicks);
         modData.putFloat("boostMultiplier", BOOST_MULTIPLIER);
         modData.putLong("boostAppliedTime", System.currentTimeMillis());
+        modData.putBoolean("isTypeBoostActive", true);
 
         playerData.put(CustomConsumables.MOD_ID, modData);
 
-        // Try to apply a type boost through commands if possible
+        // 2. Apply through our dedicated Pixelmon integration class
+        PixelmonIntegration.applyTypeBoost(player, type, durationTicks, BOOST_MULTIPLIER);
+
+        // 3. Apply via effect manager for comprehensive coverage
+        PlayerEffectManager.applyTypeAttractorEffect(player, type, durationTicks, BOOST_MULTIPLIER * 100);
+
+        // 4. Try to apply a type boost through Pixelmon commands if possible
         MinecraftServer server = player.getServer();
         if (server != null) {
             // First try with the pixelmon type boost command if it exists
@@ -146,19 +186,13 @@ public class TypeAttractorItem extends Item {
                             "pokespawn boosttype " + type.toLowerCase() + " " + BOOST_MULTIPLIER
                     );
                     CustomConsumables.getLogger().info("Applied type boost via pokespawn command");
-
-                    // Schedule removal after duration
-                    server.getCommands().performCommand(
-                            server.createCommandSourceStack().withPermission(4),
-                            "schedule function customconsumables:remove_type_boost " + (durationTicks / 20) + "s"
-                    );
                 } catch (Exception e2) {
-                    CustomConsumables.getLogger().error("Could not apply type boost via commands: {}", e2.getMessage());
+                    CustomConsumables.getLogger().debug("Could not apply type boost via commands: {}", e2.getMessage());
                 }
             }
         }
 
-        // Also try to apply the boost through reflection for maximum compatibility
+        // 5. Also try to apply the boost through reflection for maximum compatibility
         try {
             Class<?> pixelmonSpawningClass = Class.forName("com.pixelmonmod.pixelmon.spawning.PixelmonSpawning");
             Class<?> elementClass = Class.forName("com.pixelmonmod.pixelmon.api.pokemon.Element");
@@ -168,13 +202,53 @@ public class TypeAttractorItem extends Item {
             Object typeEnum = valueOfMethod.invoke(null, type.toUpperCase());
 
             // Try to find and call a method to boost spawn rates
-            java.lang.reflect.Method boostMethod = pixelmonSpawningClass.getMethod("boostType", elementClass, float.class, int.class);
-            boostMethod.invoke(null, typeEnum, BOOST_MULTIPLIER, durationTicks / 20);
+            try {
+                java.lang.reflect.Method boostMethod = pixelmonSpawningClass.getMethod("boostType", elementClass, float.class, int.class);
+                boostMethod.invoke(null, typeEnum, BOOST_MULTIPLIER, durationTicks / 20);
+                CustomConsumables.getLogger().info("Applied type boost via reflection method 1");
+            } catch (NoSuchMethodException e) {
+                // Try alternative method name
+                try {
+                    java.lang.reflect.Method boostMethod = pixelmonSpawningClass.getMethod("addTypeBoost", elementClass, float.class, int.class);
+                    boostMethod.invoke(null, typeEnum, BOOST_MULTIPLIER, durationTicks / 20);
+                    CustomConsumables.getLogger().info("Applied type boost via reflection method 2");
+                } catch (NoSuchMethodException e2) {
+                    // Try yet another approach - get instance first
+                    try {
+                        java.lang.reflect.Field instanceField = pixelmonSpawningClass.getDeclaredField("instance");
+                        instanceField.setAccessible(true);
+                        Object instance = instanceField.get(null);
 
-            CustomConsumables.getLogger().info("Applied type boost via reflection");
+                        java.lang.reflect.Method boostMethod = pixelmonSpawningClass.getMethod("addTypeBoost", elementClass, float.class, int.class);
+                        boostMethod.invoke(instance, typeEnum, BOOST_MULTIPLIER, durationTicks / 20);
+                        CustomConsumables.getLogger().info("Applied type boost via reflection method 3");
+                    } catch (Exception e3) {
+                        CustomConsumables.getLogger().debug("Could not apply type boost via reflection: {}", e3.getMessage());
+                    }
+                }
+            }
         } catch (Exception e) {
             // Just log at debug level since we've tried other methods
             CustomConsumables.getLogger().debug("Could not apply type boost via reflection: {}", e.getMessage());
+        }
+
+        // 6. Force spawn the first one right away to show it's working
+        if (server != null) {
+            try {
+                // Slight delay to allow everything to register
+                server.getCommands().performCommand(
+                        server.createCommandSourceStack().withPermission(4),
+                        "schedule function customconsumables:spawn_type_pokemon 5t"
+                );
+
+                // Then schedule a command to spawn the type directly
+                server.getCommands().performCommand(
+                        server.createCommandSourceStack().withPermission(4),
+                        "pokespawn " + type.toLowerCase()
+                );
+            } catch (Exception e) {
+                // This is just a bonus, so silently fail
+            }
         }
     }
 
@@ -186,7 +260,7 @@ public class TypeAttractorItem extends Item {
         tooltip.add(new StringTextComponent(TextFormatting.RED + typeName + " Type Attractor"));
         tooltip.add(new StringTextComponent(TextFormatting.YELLOW + "Increases " + typeName +
                 " type Pokémon spawns by " + (int)(BOOST_MULTIPLIER * 100) + "% for " + DEFAULT_DURATION + " seconds"));
-        tooltip.add(new StringTextComponent(TextFormatting.GRAY + "Works with both mono and dual-typed Pokémon"));
+        tooltip.add(new StringTextComponent(TextFormatting.GRAY + "Other types will be significantly reduced"));
         tooltip.add(new StringTextComponent(TextFormatting.ITALIC + "Consume to activate"));
     }
 
