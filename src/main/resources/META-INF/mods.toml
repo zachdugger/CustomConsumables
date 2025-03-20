@@ -9,13 +9,12 @@ displayName="Custom Pixelmon Consumables"
 logoFile="examplemod.png"
 authors="Blissy"
 description='''
-Adds custom consumable items to Pixelmon that boost various aspects of Pokémon spawning.
+Adds custom consumable items to Pixelmon that affect Pokémon spawning.
 
 Features include:
-- Legendary Lure: Increases legendary spawn rate
-- Shiny Charm: Increases shiny spawn rate
-- Hidden Ability Capsule: Increases hidden ability chance
-- Type Attractor: Increases spawns of a specific type
+- Legendary Lure: 1% chance to spawn a legendary Pokémon when used
+- Shiny Charm: 50% chance to spawn a shiny Pokémon when used
+- Type Attractor: Forces only Pokémon of a specific type to spawn around you
 '''
 
 [[dependencies.customconsumables]]

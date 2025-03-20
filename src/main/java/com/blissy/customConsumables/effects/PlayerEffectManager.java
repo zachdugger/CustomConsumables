@@ -1,12 +1,17 @@
 package com.blissy.customConsumables.effects;
 
 import com.blissy.customConsumables.CustomConsumables;
+import com.blissy.customConsumables.compat.PixelmonIntegration;
 import com.blissy.customConsumables.events.VisualFeedbackSystem;
 import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.player.ServerPlayerEntity;
 import net.minecraft.nbt.CompoundNBT;
+import net.minecraft.util.text.StringTextComponent;
+import net.minecraft.util.text.TextFormatting;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Random;
 import java.util.UUID;
 
 /**
@@ -24,9 +29,13 @@ public class PlayerEffectManager {
     private static final String DURATION_KEY = "duration";
     private static final String CHANCE_KEY = "chance";
     private static final String TYPE_VALUE_KEY = "type";
+    private static final String OVERRIDE_KEY = "override"; // For absolute values
 
     // Cache of active effects for quick access
     private static final Map<UUID, CompoundNBT> playerEffectsCache = new HashMap<>();
+
+    // Random number generator for chance calculations
+    private static final Random random = new Random();
 
     //
     // Legendary Lure Effect Methods
@@ -55,6 +64,11 @@ public class PlayerEffectManager {
 
         // Add visual feedback
         VisualFeedbackSystem.registerLegendaryLureEffect(player, durationTicks);
+
+        // Apply to Pixelmon integration if available
+        if (PixelmonIntegration.isPixelmonLoaded()) {
+            PixelmonIntegration.applyLegendaryBoost(player, durationTicks, chance);
+        }
 
         // Log effect application
         CustomConsumables.getLogger().info("Applied legendary lure effect to player {} with {}% chance for {} ticks",
@@ -119,15 +133,16 @@ public class PlayerEffectManager {
      *
      * @param player The player to receive the effect
      * @param durationTicks Duration of the effect in ticks (20 ticks = 1 second)
-     * @param multiplier The multiplier for shiny encounter rates
+     * @param absoluteChance The absolute percentage chance (0-100) for shiny encounters
      */
-    public static void applyShinyBoostEffect(PlayerEntity player, int durationTicks, float multiplier) {
+    public static void applyShinyBoostEffect(PlayerEntity player, int durationTicks, float absoluteChance) {
         CompoundNBT playerData = getOrCreatePlayerData(player);
 
         // Create effect data
         CompoundNBT effect = new CompoundNBT();
-        effect.putFloat(CHANCE_KEY, multiplier);
+        effect.putFloat(CHANCE_KEY, absoluteChance);
         effect.putInt(DURATION_KEY, durationTicks);
+        effect.putBoolean(OVERRIDE_KEY, true); // Mark as absolute chance override
 
         // Save to player data
         playerData.put(SHINY_BOOST_KEY, effect);
@@ -135,9 +150,14 @@ public class PlayerEffectManager {
         // Update cache
         playerEffectsCache.put(player.getUUID(), playerData);
 
+        // Apply to Pixelmon integration if available
+        if (PixelmonIntegration.isPixelmonLoaded()) {
+            PixelmonIntegration.applyShinyBoost(player, durationTicks, absoluteChance);
+        }
+
         // Log effect application
-        CustomConsumables.getLogger().info("Applied shiny boost effect to player {} with {}x multiplier for {} ticks",
-                player.getName().getString(), multiplier, durationTicks);
+        CustomConsumables.getLogger().info("Applied shiny boost effect to player {} with absolute {}% chance for {} ticks",
+                player.getName().getString(), absoluteChance, durationTicks);
     }
 
     /**
@@ -159,19 +179,34 @@ public class PlayerEffectManager {
     }
 
     /**
-     * Gets the shiny boost multiplier for a player.
+     * Gets the shiny boost multiplier or absolute chance for a player.
      *
      * @param player The player to check
-     * @param defaultMultiplier Default multiplier to return if no effect is present
-     * @return The current shiny boost multiplier
+     * @param defaultValue Default value to return if no effect is present
+     * @return The current shiny boost value (absolute percentage or multiplier)
      */
-    public static float getShinyBoostMultiplier(PlayerEntity player, float defaultMultiplier) {
+    public static float getShinyBoostMultiplier(PlayerEntity player, float defaultValue) {
         CompoundNBT playerData = getPlayerData(player);
         if (playerData != null && playerData.contains(SHINY_BOOST_KEY)) {
             CompoundNBT effect = playerData.getCompound(SHINY_BOOST_KEY);
             return effect.getFloat(CHANCE_KEY);
         }
-        return defaultMultiplier;
+        return defaultValue;
+    }
+
+    /**
+     * Checks if the shiny boost is an absolute chance override or a multiplier.
+     *
+     * @param player The player to check
+     * @return true if the shiny boost is an absolute chance, false if it's a multiplier
+     */
+    public static boolean isShinyBoostAbsolute(PlayerEntity player) {
+        CompoundNBT playerData = getPlayerData(player);
+        if (playerData != null && playerData.contains(SHINY_BOOST_KEY)) {
+            CompoundNBT effect = playerData.getCompound(SHINY_BOOST_KEY);
+            return effect.getBoolean(OVERRIDE_KEY);
+        }
+        return false;
     }
 
     //
@@ -198,6 +233,11 @@ public class PlayerEffectManager {
 
         // Update cache
         playerEffectsCache.put(player.getUUID(), playerData);
+
+        // Apply to Pixelmon integration if available
+        if (PixelmonIntegration.isPixelmonLoaded()) {
+            PixelmonIntegration.applyHiddenAbilityBoost(player, durationTicks, chance);
+        }
 
         // Log effect application
         CustomConsumables.getLogger().info("Applied hidden ability effect to player {} with {}% chance for {} ticks",
@@ -248,14 +288,14 @@ public class PlayerEffectManager {
      * @param player The player to receive the effect
      * @param type The Pokémon type to attract (e.g., "fire", "water", etc.)
      * @param durationTicks Duration of the effect in ticks (20 ticks = 1 second)
-     * @param chance The percentage chance (0-100) for type encounters
+     * @param multiplierOrChance The multiplier value (1.0 = 100%, 5.0 = 500%)
      */
-    public static void applyTypeAttractorEffect(PlayerEntity player, String type, int durationTicks, float chance) {
+    public static void applyTypeAttractorEffect(PlayerEntity player, String type, int durationTicks, float multiplierOrChance) {
         CompoundNBT playerData = getOrCreatePlayerData(player);
 
         // Create effect data
         CompoundNBT effect = new CompoundNBT();
-        effect.putFloat(CHANCE_KEY, chance);
+        effect.putFloat(CHANCE_KEY, multiplierOrChance);
         effect.putInt(DURATION_KEY, durationTicks);
         effect.putString(TYPE_VALUE_KEY, type.toLowerCase());
 
@@ -265,9 +305,16 @@ public class PlayerEffectManager {
         // Update cache
         playerEffectsCache.put(player.getUUID(), playerData);
 
+        // Apply to Pixelmon integration if available
+        if (PixelmonIntegration.isPixelmonLoaded()) {
+            // If value is over 100, assume it's a percentage and convert to multiplier
+            float multiplier = multiplierOrChance > 100 ? multiplierOrChance / 100.0f : multiplierOrChance;
+            PixelmonIntegration.applyTypeBoost(player, type, durationTicks, multiplier);
+        }
+
         // Log effect application
-        CustomConsumables.getLogger().info("Applied type attractor effect for {} to player {} with {}% chance for {} ticks",
-                type, player.getName().getString(), chance, durationTicks);
+        CustomConsumables.getLogger().info("Applied {} type boost to player {} with {}% multiplier for {} ticks",
+                type, player.getName().getString(), multiplierOrChance, durationTicks);
     }
 
     /**
@@ -289,19 +336,19 @@ public class PlayerEffectManager {
     }
 
     /**
-     * Gets the type attractor chance percentage for a player.
+     * Gets the type attractor chance percentage or multiplier for a player.
      *
      * @param player The player to check
-     * @param defaultChance Default chance to return if no effect is present
-     * @return The current type attractor chance percentage (0-100)
+     * @param defaultValue Default value to return if no effect is present
+     * @return The current type attractor value (percentage or multiplier)
      */
-    public static float getTypeAttractorChance(PlayerEntity player, float defaultChance) {
+    public static float getTypeAttractorChance(PlayerEntity player, float defaultValue) {
         CompoundNBT playerData = getPlayerData(player);
         if (playerData != null && playerData.contains(TYPE_BOOST_KEY)) {
             CompoundNBT effect = playerData.getCompound(TYPE_BOOST_KEY);
             return effect.getFloat(CHANCE_KEY);
         }
-        return defaultChance;
+        return defaultValue;
     }
 
     /**
@@ -334,7 +381,8 @@ public class PlayerEffectManager {
      * Legacy method for compatibility with other classes
      */
     public static void applyShinyBoost(PlayerEntity player, int duration) {
-        applyShinyBoostEffect(player, duration, 3.0f);
+        // Changed to absolute 50% chance instead of 3x multiplier
+        applyShinyBoostEffect(player, duration, 50.0f);
     }
 
     /**
@@ -348,7 +396,8 @@ public class PlayerEffectManager {
      * Legacy method for compatibility with other classes
      */
     public static void applyTypeBoost(PlayerEntity player, String type, int duration) {
-        applyTypeAttractorEffect(player, type, duration, 100.0f);
+        // 500% multiplier for type boost
+        applyTypeAttractorEffect(player, type, duration, 500.0f);
     }
 
     /**
@@ -469,6 +518,38 @@ public class PlayerEffectManager {
             if (duration == 0) {
                 CustomConsumables.getLogger().info("Effect {} expired for player {}",
                         effectKey, player.getName().getString());
+
+                // Notify player when effect expires
+                if (player instanceof ServerPlayerEntity) {
+                    ServerPlayerEntity serverPlayer = (ServerPlayerEntity) player;
+
+                    // Different messages based on effect type
+                    if (effectKey.equals(LEGENDARY_LURE_KEY)) {
+                        serverPlayer.sendMessage(
+                                new StringTextComponent(TextFormatting.GOLD + "Your Legendary Lure effect has expired!"),
+                                player.getUUID()
+                        );
+                    } else if (effectKey.equals(SHINY_BOOST_KEY)) {
+                        serverPlayer.sendMessage(
+                                new StringTextComponent(TextFormatting.AQUA + "Your Shiny Charm effect has expired!"),
+                                player.getUUID()
+                        );
+                    } else if (effectKey.equals(HIDDEN_ABILITY_BOOST_KEY)) {
+                        serverPlayer.sendMessage(
+                                new StringTextComponent(TextFormatting.LIGHT_PURPLE + "Your Hidden Ability boost has expired!"),
+                                player.getUUID()
+                        );
+                    } else if (effectKey.equals(TYPE_BOOST_KEY)) {
+                        String typeName = effect.getString(TYPE_VALUE_KEY);
+                        if (!typeName.isEmpty()) {
+                            typeName = typeName.substring(0, 1).toUpperCase() + typeName.substring(1).toLowerCase();
+                            serverPlayer.sendMessage(
+                                    new StringTextComponent(TextFormatting.RED + "Your " + typeName + " Type Attractor has expired!"),
+                                    player.getUUID()
+                            );
+                        }
+                    }
+                }
             }
 
             return true;
@@ -522,5 +603,93 @@ public class PlayerEffectManager {
         }
 
         return null;
+    }
+
+    /**
+     * Determines if a Pokémon spawn should be forced to be shiny
+     * based on player's active effects.
+     *
+     * @param player The player to check for effects
+     * @return true if the spawn should be shiny
+     */
+    public static boolean shouldBeShiny(PlayerEntity player) {
+        if (player == null) return false;
+
+        boolean hasShinyEffect = hasShinyBoostEffect(player);
+        if (!hasShinyEffect) return false;
+
+        float chance = getShinyBoostMultiplier(player, 0); // Get absolute percentage
+
+        // Roll for the chance (now using percentage directly)
+        float roll = random.nextFloat() * 100.0f;
+        boolean success = roll <= chance;
+
+        // Debug output
+        if (success && player instanceof ServerPlayerEntity) {
+            ((ServerPlayerEntity) player).sendMessage(
+                    new StringTextComponent(TextFormatting.AQUA +
+                            "★ Shiny boost activated! Pokémon will be shiny! ★"),
+                    player.getUUID()
+            );
+
+            CustomConsumables.getLogger().info(
+                    "Player {} rolled {} vs {}% for shiny. SUCCESS!",
+                    player.getName().getString(), roll, chance
+            );
+        }
+
+        return success;
+    }
+
+    /**
+     * Determines if a specific Pokémon type should be spawned
+     * based on player's active type attractor effect.
+     *
+     * @param player The player to check for effects
+     * @param pokemonType The type of the Pokémon being considered for spawn
+     * @return true if the type should be spawned, false otherwise
+     */
+    public static boolean shouldSpawnType(PlayerEntity player, String pokemonType) {
+        if (player == null) return true;
+
+        boolean hasTypeEffect = hasTypeAttractorEffect(player);
+        if (!hasTypeEffect) return true; // Allow all types if no effect
+
+        String boostedType = getTypeAttractorType(player);
+        float multiplier = getTypeAttractorChance(player, 0) / 100.0f; // Convert to multiplier
+
+        // For 5x multiplier, ONLY spawn the boosted type
+        if (multiplier >= 5.0f) {
+            boolean isMatch = boostedType.equalsIgnoreCase(pokemonType);
+
+            if (isMatch && player instanceof ServerPlayerEntity) {
+                // Debug message for matching type
+                CustomConsumables.getLogger().info(
+                        "Player {} type attractor allowing {} type (matches {})",
+                        player.getName().getString(), pokemonType, boostedType
+                );
+            } else if (!isMatch) {
+                // Debug message for non-matching type
+                CustomConsumables.getLogger().debug(
+                        "Player {} type attractor blocking {} type (only {} allowed)",
+                        player.getName().getString(), pokemonType, boostedType
+                );
+            }
+
+            return isMatch;
+        }
+
+        // For smaller multipliers, boost the chance but don't block other types
+        if (boostedType.equalsIgnoreCase(pokemonType)) {
+            // This is the boosted type, give it a higher chance
+            // We'll implement this by returning true more often for this type
+            float roll = random.nextFloat();
+            return roll <= 0.8f; // 80% chance to allow boosted type
+        }
+
+        // For non-boosted types with small multiplier
+        // Allow them but at reduced rate
+        float roll = random.nextFloat();
+        return roll <= (1.0f / multiplier); // Inverse relation to multiplier
     }
 }

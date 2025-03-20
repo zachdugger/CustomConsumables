@@ -1,8 +1,7 @@
 package com.blissy.customConsumables.events;
 
 import com.blissy.customConsumables.effects.PlayerEffectManager;
-import com.blissy.customConsumables.compat.PixelmonCompat;
-import net.minecraft.entity.player.PlayerEntity;
+import com.blissy.customConsumables.compat.PixelmonIntegration;
 import net.minecraft.entity.player.ServerPlayerEntity;
 import net.minecraft.util.text.StringTextComponent;
 import net.minecraft.util.text.TextFormatting;
@@ -47,7 +46,7 @@ public class ConsumableEvents {
             );
 
             // Check if Pixelmon is loaded
-            if (PixelmonCompat.isPixelmonLoaded()) {
+            if (PixelmonIntegration.isPixelmonLoaded()) {
                 player.sendMessage(
                         new StringTextComponent(TextFormatting.GREEN + "Pixelmon detected! Full integration enabled."),
                         player.getUUID()

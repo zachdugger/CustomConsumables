@@ -1,62 +1,93 @@
 package com.blissy.customConsumables.items;
 
 import com.blissy.customConsumables.CustomConsumables;
-import com.blissy.customConsumables.effects.PlayerEffectManager;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.player.ServerPlayerEntity;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.UseAction;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
 import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.StringTextComponent;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.World;
+import net.minecraftforge.fml.ModList;
 
 import javax.annotation.Nullable;
 import java.util.List;
+import java.util.Random;
 
 public class LegendaryLureItem extends Item {
-    private final float legendaryChance;
-    private final int durationTicks;
+    private static final Random RANDOM = new Random();
+    private static final float LEGENDARY_SPAWN_CHANCE = 1.0f; // 1% chance
 
-    public LegendaryLureItem(Item.Properties properties, float legendaryChance, int durationSeconds) {
+    public LegendaryLureItem(Item.Properties properties) {
         super(properties);
-        this.legendaryChance = legendaryChance;
-        this.durationTicks = durationSeconds * 20; // Convert seconds to ticks
     }
 
     @Override
     public ItemStack finishUsingItem(ItemStack stack, World worldIn, LivingEntity entityLiving) {
-        if (entityLiving instanceof PlayerEntity && !worldIn.isClientSide) {
-            PlayerEntity playerIn = (PlayerEntity) entityLiving;
+        if (entityLiving instanceof ServerPlayerEntity && !worldIn.isClientSide) {
+            ServerPlayerEntity player = (ServerPlayerEntity) entityLiving;
 
-            // Apply the legendary lure effect with the configured chance
-            PlayerEffectManager.applyLegendaryLureEffect(playerIn, durationTicks, legendaryChance);
+            // Check if Pixelmon is loaded
+            boolean pixelmonLoaded = ModList.get().isLoaded("pixelmon");
+            if (!pixelmonLoaded) {
+                player.displayClientMessage(
+                        new StringTextComponent(TextFormatting.RED + "Pixelmon mod is not installed! This item requires Pixelmon."),
+                        true
+                );
+                return stack;
+            }
 
-            // Notify the player
-            playerIn.displayClientMessage(
-                    new StringTextComponent(
-                            TextFormatting.GOLD + "You consumed a Legendary Lure! " +
-                                    TextFormatting.YELLOW + "Legendary spawn chance increased to " +
-                                    TextFormatting.GREEN + legendaryChance + "%" +
-                                    TextFormatting.YELLOW + " for " + (durationTicks / 20) + " seconds!"
-                    ),
-                    true
-            );
+            // Roll for legendary spawn (1% chance)
+            float roll = RANDOM.nextFloat() * 100.0f;
+            boolean success = roll <= LEGENDARY_SPAWN_CHANCE;
 
-            // Log usage
-            CustomConsumables.getLogger().info(
-                    "Player {} used Legendary Lure with {}% chance for {} seconds",
-                    playerIn.getName().getString(),
-                    legendaryChance,
-                    durationTicks / 20
-            );
+            if (success) {
+                // Attempt to spawn a legendary
+                MinecraftServer server = player.getServer();
+                if (server != null) {
+                    // Run the command to spawn a legendary
+                    server.getCommands().performCommand(
+                            player.createCommandSourceStack().withPermission(4), // Admin level permission
+                            "pokespawn legendary"
+                    );
 
-            // Consume the item
-            if (!playerIn.abilities.instabuild) {
+                    // Notify player of success
+                    player.displayClientMessage(
+                            new StringTextComponent(TextFormatting.GOLD + "The Legendary Lure worked! A legendary Pokémon is spawning!"),
+                            true
+                    );
+
+                    // Log the successful spawn
+                    CustomConsumables.getLogger().info(
+                            "Player {} used Legendary Lure successfully! Spawning a legendary.",
+                            player.getName().getString()
+                    );
+                }
+            } else {
+                // Notify player of failure
+                player.displayClientMessage(
+                        new StringTextComponent(TextFormatting.YELLOW + "You used a Legendary Lure, but no legendary appeared this time..."),
+                        true
+                );
+
+                // Log the failed attempt
+                CustomConsumables.getLogger().info(
+                        "Player {} used Legendary Lure but failed the roll ({}% vs {}% chance).",
+                        player.getName().getString(),
+                        String.format("%.2f", roll),
+                        LEGENDARY_SPAWN_CHANCE
+                );
+            }
+
+            // Consume the item unless in creative mode
+            if (!player.abilities.instabuild) {
                 stack.shrink(1);
             }
         }
@@ -67,10 +98,10 @@ public class LegendaryLureItem extends Item {
     @Override
     public void appendHoverText(ItemStack stack, @Nullable World worldIn, List<ITextComponent> tooltip, ITooltipFlag flagIn) {
         tooltip.add(new StringTextComponent(TextFormatting.GOLD + "Legendary Lure"));
-        tooltip.add(new StringTextComponent(TextFormatting.YELLOW + "Increases legendary spawn chance to " +
-                TextFormatting.GREEN + legendaryChance + "%" +
-                TextFormatting.YELLOW + " for " + (durationTicks / 20) + " seconds"));
-        tooltip.add(new StringTextComponent(TextFormatting.ITALIC + "Consume to activate"));
+        tooltip.add(new StringTextComponent(TextFormatting.YELLOW + "Has a " +
+                TextFormatting.GREEN + LEGENDARY_SPAWN_CHANCE + "%" +
+                TextFormatting.YELLOW + " chance to spawn a legendary Pokémon when used"));
+        tooltip.add(new StringTextComponent(TextFormatting.ITALIC + "Consume to try your luck!"));
     }
 
     @Override

@@ -1,6 +1,5 @@
 package com.blissy.customConsumables;
 
-import com.blissy.customConsumables.events.PixelmonCommandHooks;
 import com.blissy.customConsumables.init.ItemInit;
 import net.minecraft.item.ItemGroup;
 import net.minecraft.item.ItemStack;
@@ -13,6 +12,7 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+import net.minecraftforge.fml.ModList;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -53,21 +53,30 @@ public class CustomConsumables {
         LOGGER.info("CustomConsumables setup starting");
 
         // Check for Pixelmon
-        boolean pixelmonLoaded = PixelmonCommandHooks.isPixelmonLoaded();
+        boolean pixelmonLoaded = ModList.get().isLoaded("pixelmon");
         LOGGER.info("Pixelmon detected: {}", pixelmonLoaded ? "Yes" : "No");
 
         if (pixelmonLoaded) {
             LOGGER.info("CustomConsumables is integrated with Pixelmon");
+            LOGGER.info("Type Attractor now boosts spawn rates of specific types by 1000%");
+
+            // Register data functions if server supports them
+            event.enqueueWork(() -> {
+                try {
+                    LOGGER.info("Setting up Pixelmon integration");
+                } catch (Exception e) {
+                    LOGGER.error("Error during Pixelmon integration: {}", e.getMessage());
+                }
+            });
         } else {
             LOGGER.info("CustomConsumables will work without Pixelmon features");
         }
 
         LOGGER.info("CustomConsumables setup complete");
         LOGGER.info("Available items:");
-        LOGGER.info(" - Legendary Lure");
-        LOGGER.info(" - Shiny Charm");
-        LOGGER.info(" - Hidden Ability Capsule");
-        LOGGER.info(" - Type Attractor");
+        LOGGER.info(" - Legendary Lure (1% chance to spawn a legendary Pokémon)");
+        LOGGER.info(" - Shiny Charm (50% chance to spawn a shiny Pokémon)");
+        LOGGER.info(" - Type Attractor (Boosts specified type spawn rates by 1000%)");
         LOGGER.info("Use /customitem debug to verify mod is working in-game");
     }
 
@@ -97,6 +106,14 @@ public class CustomConsumables {
                         new StringTextComponent(TextFormatting.YELLOW + "Use /customitem debug to verify integration"),
                         event.getPlayer().getUUID()
                 );
+
+                // Check for active Pixelmon
+                if (ModList.get().isLoaded("pixelmon")) {
+                    event.getPlayer().sendMessage(
+                            new StringTextComponent(TextFormatting.GREEN + "Pixelmon integration is enabled"),
+                            event.getPlayer().getUUID()
+                    );
+                }
             }
         }
     }

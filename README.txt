@@ -3,9 +3,8 @@ A Minecraft Forge mod that adds special consumable items for enhancing Pixelmon 
 Features
 This mod adds several consumable items that enhance various aspects of Pokémon spawning:
 
-Legendary Lure: Increases legendary Pokémon spawn rate for 1 minute
-Shiny Charm: Increases shiny Pokémon spawn chance for 3 minutes
-Hidden Ability Capsule: Increases chance of hidden abilities for 2 minutes
+Legendary Lure: 1% chance to spawn a legendary in the server
+Shiny Charm: X percentage to instantly spawn a shiny on your player
 Type Attractor: Increases spawns of a specific type for 2 minutes
 
 Requirements

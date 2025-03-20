@@ -19,6 +19,7 @@ import net.minecraft.util.text.TextFormatting;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.ModList;
 
 import java.util.Arrays;
 import java.util.List;
@@ -59,16 +60,6 @@ public class CommandRegistration {
                                 .executes(ctx -> giveItemToTarget(ctx, new ItemStack(ItemInit.SHINY_CHARM.get())))
                                 .then(Commands.argument("count", IntegerArgumentType.integer(1, 64))
                                         .executes(ctx -> giveItemToTarget(ctx, new ItemStack(ItemInit.SHINY_CHARM.get(),
-                                                IntegerArgumentType.getInteger(ctx, "count")))))))
-                .then(Commands.literal("hiddenability")
-                        .executes(ctx -> giveItem(ctx.getSource(), new ItemStack(ItemInit.HIDDEN_ABILITY_CAPSULE.get())))
-                        .then(Commands.argument("count", IntegerArgumentType.integer(1, 64))
-                                .executes(ctx -> giveItem(ctx.getSource(), new ItemStack(ItemInit.HIDDEN_ABILITY_CAPSULE.get(),
-                                        IntegerArgumentType.getInteger(ctx, "count")))))
-                        .then(Commands.argument("player", EntityArgument.player())
-                                .executes(ctx -> giveItemToTarget(ctx, new ItemStack(ItemInit.HIDDEN_ABILITY_CAPSULE.get())))
-                                .then(Commands.argument("count", IntegerArgumentType.integer(1, 64))
-                                        .executes(ctx -> giveItemToTarget(ctx, new ItemStack(ItemInit.HIDDEN_ABILITY_CAPSULE.get(),
                                                 IntegerArgumentType.getInteger(ctx, "count")))))))
                 .then(Commands.literal("type")
                         .then(Commands.argument("type", StringArgumentType.word())
@@ -136,7 +127,7 @@ public class CommandRegistration {
                             ctx.getSource().sendSuccess(new StringTextComponent(TextFormatting.GREEN +
                                     "CustomConsumables mod is loaded and working!"), false);
 
-                            boolean pixelmonLoaded = com.blissy.customConsumables.events.PixelmonCommandHooks.isPixelmonLoaded();
+                            boolean pixelmonLoaded = ModList.get().isLoaded("pixelmon");
                             ctx.getSource().sendSuccess(new StringTextComponent(TextFormatting.YELLOW +
                                     "Pixelmon detected: " + (pixelmonLoaded ? "Yes" : "No")), false);
 
@@ -144,11 +135,9 @@ public class CommandRegistration {
                                     "Available items:"), false);
 
                             ctx.getSource().sendSuccess(new StringTextComponent(TextFormatting.GOLD +
-                                    " - Legendary Lure"), false);
+                                    " - Legendary Lure (1% chance to spawn a legendary)"), false);
                             ctx.getSource().sendSuccess(new StringTextComponent(TextFormatting.AQUA +
-                                    " - Shiny Charm"), false);
-                            ctx.getSource().sendSuccess(new StringTextComponent(TextFormatting.LIGHT_PURPLE +
-                                    " - Hidden Ability Capsule"), false);
+                                    " - Shiny Charm (50% chance to spawn a shiny)"), false);
                             ctx.getSource().sendSuccess(new StringTextComponent(TextFormatting.RED +
                                     " - Type Attractor (for " + POKEMON_TYPES.size() + " types)"), false);
 

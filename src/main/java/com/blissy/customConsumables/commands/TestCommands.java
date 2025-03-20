@@ -3,6 +3,7 @@ package com.blissy.customConsumables.commands;
 import com.blissy.customConsumables.CustomConsumables;
 import com.blissy.customConsumables.effects.PlayerEffectManager;
 import com.blissy.customConsumables.events.PixelmonCommandHooks;
+import com.blissy.customConsumables.events.PixelmonSpawnHandler;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import net.minecraft.command.CommandSource;
@@ -50,16 +51,24 @@ public class TestCommands {
                                             TextFormatting.GREEN + (remaining / 20) + " seconds" +
                                             TextFormatting.YELLOW + " remaining)"), false);
 
+                            // Explain how it works
+                            context.getSource().sendSuccess(
+                                    new StringTextComponent(TextFormatting.YELLOW + "Base legendary spawn chance: 30%"), false);
+                            context.getSource().sendSuccess(
+                                    new StringTextComponent(TextFormatting.YELLOW + "With your lure: 100%"), false);
+                            context.getSource().sendSuccess(
+                                    new StringTextComponent(TextFormatting.YELLOW + "This will be applied during normal spawn checks."), false);
+
                             // Attempt to force a legendary spawn check
-                            boolean result = PixelmonCommandHooks.forceTestLegendaryCheck(player);
+                            boolean result = PixelmonSpawnHandler.forceSpawnTick(player);
 
                             if (!result) {
                                 context.getSource().sendSuccess(
                                         new StringTextComponent(TextFormatting.YELLOW +
-                                                "Could not trigger a legendary spawn check."), false);
+                                                "Spawning check completed, but no legendary was spawned."), false);
                                 context.getSource().sendSuccess(
                                         new StringTextComponent(TextFormatting.YELLOW +
-                                                "Make sure Pixelmon is installed and you have permission to use pokespawn commands."), false);
+                                                "This doesn't guarantee a spawn, only forces a check against the spawn chance."), false);
                             }
                         } else {
                             // Player doesn't have the effect
@@ -96,9 +105,6 @@ public class TestCommands {
                         context.getSource().sendSuccess(
                                 new StringTextComponent(TextFormatting.YELLOW +
                                         "Use '/testlegendary' to test it or '/testmode' for continuous testing."), false);
-                        context.getSource().sendSuccess(
-                                new StringTextComponent(TextFormatting.YELLOW +
-                                        "Or try '/pokespawn legendary' to force a spawn with your lure."), false);
                     } catch (Exception e) {
                         CustomConsumables.getLogger().error("Error in applylegendary command", e);
                         context.getSource().sendFailure(new StringTextComponent("Error: " + e.getMessage()));
@@ -124,9 +130,6 @@ public class TestCommands {
                                 context.getSource().sendSuccess(
                                         new StringTextComponent(TextFormatting.YELLOW +
                                                 "Use '/testlegendary' to test it or '/testmode' for continuous testing."), false);
-                                context.getSource().sendSuccess(
-                                        new StringTextComponent(TextFormatting.YELLOW +
-                                                "Or try '/pokespawn legendary' to force a spawn with your lure."), false);
                             } catch (Exception e) {
                                 CustomConsumables.getLogger().error("Error in applylegendary command", e);
                                 context.getSource().sendFailure(new StringTextComponent("Error: " + e.getMessage()));
@@ -134,44 +137,4 @@ public class TestCommands {
 
                             return 1;
                         })));
-
-        // Add a command that starts test mode for frequent legendary checks
-        dispatcher.register(Commands.literal("testmode")
-                .requires(source -> source.hasPermission(2)) // Requires permission level 2 (op)
-                .executes(context -> {
-                    try {
-                        ServerPlayerEntity player = context.getSource().getPlayerOrException();
-
-                        CustomConsumables.getLogger().info("Player {} started test mode for 120 seconds", player.getName().getString());
-
-                        // Start test mode for 2 minutes
-                        PixelmonCommandHooks.startTestMode(player, 120);
-                    } catch (Exception e) {
-                        CustomConsumables.getLogger().error("Error in testmode command", e);
-                        context.getSource().sendFailure(new StringTextComponent("Error: " + e.getMessage()));
-                    }
-
-                    return 1;
-                })
-                .then(Commands.argument("seconds", IntegerArgumentType.integer(10, 600))
-                        .executes(context -> {
-                            try {
-                                ServerPlayerEntity player = context.getSource().getPlayerOrException();
-                                int seconds = IntegerArgumentType.getInteger(context, "seconds");
-
-                                CustomConsumables.getLogger().info("Player {} started test mode for {} seconds",
-                                        player.getName().getString(), seconds);
-
-                                // Start test mode for specified duration
-                                PixelmonCommandHooks.startTestMode(player, seconds);
-                            } catch (Exception e) {
-                                CustomConsumables.getLogger().error("Error in testmode command", e);
-                                context.getSource().sendFailure(new StringTextComponent("Error: " + e.getMessage()));
-                            }
-
-                            return 1;
-                        })));
-
-        CustomConsumables.getLogger().info("Successfully registered test commands for CustomConsumables");
-    }
-}
+    }}
