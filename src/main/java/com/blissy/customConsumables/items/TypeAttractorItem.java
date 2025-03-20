@@ -1,8 +1,10 @@
 package com.blissy.customConsumables.items;
 
 import com.blissy.customConsumables.CustomConsumables;
-import com.blissy.customConsumables.effects.PlayerEffectManager;
 import com.blissy.customConsumables.compat.PixelmonIntegration;
+import com.blissy.customConsumables.effects.PlayerEffectManager;
+import com.blissy.customConsumables.events.DynamicTypeSpawnHandler;
+import com.blissy.customConsumables.events.PokemonTypeDataHandler;
 import com.blissy.customConsumables.init.ItemInit;
 import net.minecraft.client.util.ITooltipFlag;
 import net.minecraft.entity.LivingEntity;
@@ -168,7 +170,12 @@ public class TypeAttractorItem extends Item {
         // 3. Apply via effect manager for comprehensive coverage
         PlayerEffectManager.applyTypeAttractorEffect(player, type, durationTicks, BOOST_MULTIPLIER * 100);
 
-        // 4. Try to apply a type boost through Pixelmon commands if possible
+        // 4. Initialize the dynamic spawn handlers if not already done
+        PokemonTypeDataHandler typeHandler = PokemonTypeDataHandler.getInstance();
+        typeHandler.initialize();
+        DynamicTypeSpawnHandler.initialize();
+
+        // 5. Try to apply a type boost through Pixelmon commands if possible
         MinecraftServer server = player.getServer();
         if (server != null) {
             // First try with the pixelmon type boost command if it exists
@@ -192,62 +199,17 @@ public class TypeAttractorItem extends Item {
             }
         }
 
-        // 5. Also try to apply the boost through reflection for maximum compatibility
-        try {
-            Class<?> pixelmonSpawningClass = Class.forName("com.pixelmonmod.pixelmon.spawning.PixelmonSpawning");
-            Class<?> elementClass = Class.forName("com.pixelmonmod.pixelmon.api.pokemon.Element");
-
-            // Get the Element enum value
-            java.lang.reflect.Method valueOfMethod = elementClass.getMethod("valueOf", String.class);
-            Object typeEnum = valueOfMethod.invoke(null, type.toUpperCase());
-
-            // Try to find and call a method to boost spawn rates
-            try {
-                java.lang.reflect.Method boostMethod = pixelmonSpawningClass.getMethod("boostType", elementClass, float.class, int.class);
-                boostMethod.invoke(null, typeEnum, BOOST_MULTIPLIER, durationTicks / 20);
-                CustomConsumables.getLogger().info("Applied type boost via reflection method 1");
-            } catch (NoSuchMethodException e) {
-                // Try alternative method name
-                try {
-                    java.lang.reflect.Method boostMethod = pixelmonSpawningClass.getMethod("addTypeBoost", elementClass, float.class, int.class);
-                    boostMethod.invoke(null, typeEnum, BOOST_MULTIPLIER, durationTicks / 20);
-                    CustomConsumables.getLogger().info("Applied type boost via reflection method 2");
-                } catch (NoSuchMethodException e2) {
-                    // Try yet another approach - get instance first
-                    try {
-                        java.lang.reflect.Field instanceField = pixelmonSpawningClass.getDeclaredField("instance");
-                        instanceField.setAccessible(true);
-                        Object instance = instanceField.get(null);
-
-                        java.lang.reflect.Method boostMethod = pixelmonSpawningClass.getMethod("addTypeBoost", elementClass, float.class, int.class);
-                        boostMethod.invoke(instance, typeEnum, BOOST_MULTIPLIER, durationTicks / 20);
-                        CustomConsumables.getLogger().info("Applied type boost via reflection method 3");
-                    } catch (Exception e3) {
-                        CustomConsumables.getLogger().debug("Could not apply type boost via reflection: {}", e3.getMessage());
-                    }
-                }
-            }
-        } catch (Exception e) {
-            // Just log at debug level since we've tried other methods
-            CustomConsumables.getLogger().debug("Could not apply type boost via reflection: {}", e.getMessage());
-        }
-
-        // 6. Force spawn the first one right away to show it's working
+        // 6. Force an initial spawn of the type to show it's working
         if (server != null) {
             try {
-                // Slight delay to allow everything to register
+                // Try to spawn one of this type right away
                 server.getCommands().performCommand(
                         server.createCommandSourceStack().withPermission(4),
-                        "schedule function customconsumables:spawn_type_pokemon 5t"
-                );
-
-                // Then schedule a command to spawn the type directly
-                server.getCommands().performCommand(
-                        server.createCommandSourceStack().withPermission(4),
-                        "pokespawn " + type.toLowerCase()
+                        "pokespawnall"
                 );
             } catch (Exception e) {
-                // This is just a bonus, so silently fail
+                // Just log and continue
+                CustomConsumables.getLogger().debug("Error spawning initial Pokémon: {}", e.getMessage());
             }
         }
     }
