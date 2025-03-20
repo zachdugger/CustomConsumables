@@ -1,10 +1,13 @@
 package com.blissy.customConsumables.items;
 
+import com.blissy.customConsumables.CustomConsumables;
 import com.blissy.customConsumables.effects.PlayerEffectManager;
 import net.minecraft.client.util.ITooltipFlag;
+import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+import net.minecraft.item.UseAction;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
 import net.minecraft.util.text.ITextComponent;
@@ -16,35 +19,74 @@ import javax.annotation.Nullable;
 import java.util.List;
 
 public class LegendaryLureItem extends Item {
+    private final float legendaryChance;
+    private final int durationTicks;
 
-    public LegendaryLureItem(Properties properties) {
+    public LegendaryLureItem(Item.Properties properties, float legendaryChance, int durationSeconds) {
         super(properties);
+        this.legendaryChance = legendaryChance;
+        this.durationTicks = durationSeconds * 20; // Convert seconds to ticks
     }
 
-    // Fix: use correct method name for Forge 1.16.5
     @Override
-    public ActionResult<ItemStack> use(World worldIn, PlayerEntity playerIn, Hand handIn) {
-        ItemStack itemstack = playerIn.getItemInHand(handIn);
+    public ItemStack finishUsingItem(ItemStack stack, World worldIn, LivingEntity entityLiving) {
+        if (entityLiving instanceof PlayerEntity && !worldIn.isClientSide) {
+            PlayerEntity playerIn = (PlayerEntity) entityLiving;
 
-        if (!worldIn.isClientSide) {
-            // Apply the legendary boost effect to the player
-            PlayerEffectManager.applyLegendaryBoost(playerIn, 1200); // 1200 ticks = 1 minute
+            // Apply the legendary lure effect with the configured chance
+            PlayerEffectManager.applyLegendaryLureEffect(playerIn, durationTicks, legendaryChance);
 
-            // Show message to player
-            playerIn.sendMessage(new StringTextComponent(TextFormatting.GOLD + "You feel a mysterious energy that might attract legendary Pokémon..."), playerIn.getUUID());
+            // Notify the player
+            playerIn.displayClientMessage(
+                    new StringTextComponent(
+                            TextFormatting.GOLD + "You consumed a Legendary Lure! " +
+                                    TextFormatting.YELLOW + "Legendary spawn chance increased to " +
+                                    TextFormatting.GREEN + legendaryChance + "%" +
+                                    TextFormatting.YELLOW + " for " + (durationTicks / 20) + " seconds!"
+                    ),
+                    true
+            );
 
-            // Consume one item
+            // Log usage
+            CustomConsumables.getLogger().info(
+                    "Player {} used Legendary Lure with {}% chance for {} seconds",
+                    playerIn.getName().getString(),
+                    legendaryChance,
+                    durationTicks / 20
+            );
+
+            // Consume the item
             if (!playerIn.abilities.instabuild) {
-                itemstack.shrink(1);
+                stack.shrink(1);
             }
         }
 
-        return ActionResult.sidedSuccess(itemstack, worldIn.isClientSide);
+        return stack;
     }
 
     @Override
     public void appendHoverText(ItemStack stack, @Nullable World worldIn, List<ITextComponent> tooltip, ITooltipFlag flagIn) {
-        tooltip.add(new StringTextComponent(TextFormatting.BLUE + "Increases legendary Pokémon spawn rate for 1 minute"));
-        super.appendHoverText(stack, worldIn, tooltip, flagIn);
+        tooltip.add(new StringTextComponent(TextFormatting.GOLD + "Legendary Lure"));
+        tooltip.add(new StringTextComponent(TextFormatting.YELLOW + "Increases legendary spawn chance to " +
+                TextFormatting.GREEN + legendaryChance + "%" +
+                TextFormatting.YELLOW + " for " + (durationTicks / 20) + " seconds"));
+        tooltip.add(new StringTextComponent(TextFormatting.ITALIC + "Consume to activate"));
+    }
+
+    @Override
+    public UseAction getUseAnimation(ItemStack stack) {
+        return UseAction.EAT;
+    }
+
+    @Override
+    public int getUseDuration(ItemStack stack) {
+        return 32;
+    }
+
+    @Override
+    public ActionResult<ItemStack> use(World worldIn, PlayerEntity playerIn, Hand handIn) {
+        ItemStack itemstack = playerIn.getItemInHand(handIn);
+        playerIn.startUsingItem(handIn);
+        return ActionResult.consume(itemstack);
     }
 }
