@@ -1,0 +1,40 @@
+modLoader="javafml"
+loaderVersion="[36,)"
+license="All rights reserved"
+
+[[mods]]
+modId="customconsumables"
+version="1.0.0"
+displayName="Custom Pixelmon Consumables"
+logoFile="examplemod.png"
+authors="Blissy"
+description='''
+Adds custom consumable items to Pixelmon that boost various aspects of Pokémon spawning.
+
+Features include:
+- Legendary Lure: Increases legendary spawn rate
+- Shiny Charm: Increases shiny spawn rate
+- Hidden Ability Capsule: Increases hidden ability chance
+- Type Attractor: Increases spawns of a specific type
+'''
+
+[[dependencies.customconsumables]]
+modId="forge"
+mandatory=true
+versionRange="[36,)"
+ordering="NONE"
+side="BOTH"
+
+[[dependencies.customconsumables]]
+modId="minecraft"
+mandatory=true
+versionRange="[1.16.5]"
+ordering="NONE"
+side="BOTH"
+
+[[dependencies.customconsumables]]
+modId="pixelmon"
+mandatory=true
+versionRange="[9.1.0,)"
+ordering="AFTER"
+side="BOTH"
