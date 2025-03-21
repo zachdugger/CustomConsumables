@@ -25,10 +25,12 @@ import net.minecraft.world.biome.Biome;
 import net.minecraftforge.fml.ModList;
 
 import javax.annotation.Nullable;
+import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
+import java.util.UUID;
 
 public class TypeAttractorItem extends Item {
     private static final Random RANDOM = new Random();
@@ -103,23 +105,53 @@ public class TypeAttractorItem extends Item {
             String typeName = formatTypeName(type);
 
             try {
+                // Register the type boost directly with Pixelmon's internal systems
+                boolean boostRegistered = registerTypeBoostWithPixelmon(player, type);
+
+                // Apply our own effect tracking
+                PlayerEffectManager.applyTypeAttractorEffect(player, type, DEFAULT_DURATION, TYPE_MULTIPLIER);
+
+                // Also register with the spawn manager for our visual effects
+                TypeSpawnManager.getInstance().registerTypeBoost(player, type, DEFAULT_DURATION, TYPE_MULTIPLIER);
+
                 // Get eligible Pokémon for this player's biome and the selected type
                 Set<String> eligiblePokemon = PokemonTypeDataHandler.getInstance()
                         .getEligiblePokemonForPlayer(player, type);
 
-                // Apply the effect directly to the player
-                PlayerEffectManager.applyTypeAttractorEffect(player, type, DEFAULT_DURATION, TYPE_MULTIPLIER);
-
-                // Also register with the spawn manager for advanced features
-                // FIX: Pass only the correct number of arguments (type, duration, multiplier)
-                TypeSpawnManager.getInstance().registerTypeBoost(player, type, DEFAULT_DURATION, TYPE_MULTIPLIER);
-
-                // Send info to the player
+                // Display success message
                 player.displayClientMessage(
                         new StringTextComponent(getTypeColor(type) + typeName + " Type Attractor " +
                                 TextFormatting.GREEN + "activated!"),
                         true
                 );
+
+                // Show detailed status message about the boost
+                if (boostRegistered) {
+                    player.displayClientMessage(
+                            new StringTextComponent(TextFormatting.GREEN + "Successfully boosted " + typeName +
+                                    " type spawn rate by 1000% using Pixelmon's spawn system!"),
+                            true
+                    );
+
+                    // Log success
+                    CustomConsumables.getLogger().info("Successfully registered type boost for {} with Pixelmon's spawn system",
+                            player.getName().getString());
+                } else {
+                    player.displayClientMessage(
+                            new StringTextComponent(TextFormatting.YELLOW + "Warning: Could not register boost with Pixelmon's internal system. " +
+                                    "The booster may not work properly."),
+                            true
+                    );
+
+                    player.displayClientMessage(
+                            new StringTextComponent(TextFormatting.YELLOW + "Please report this issue with your Pixelmon version (9.1.13)"),
+                            true
+                    );
+
+                    // Log detailed failure
+                    CustomConsumables.getLogger().warn("Failed to register type boost with Pixelmon's spawn system for player {} with type {}",
+                            player.getName().getString(), type);
+                }
 
                 // Show information about the current biome
                 Biome biome = world.getBiome(player.blockPosition());
@@ -173,30 +205,162 @@ public class TypeAttractorItem extends Item {
                 // Create a visual effect
                 createTypeBoostEffect(player, type);
 
-                // Try to immediately spawn a Pokémon of this type
-                trySpawnTypePokemon(player, type);
-
                 // Log the usage
                 CustomConsumables.getLogger().info(
                         "Player {} used a {} Type Attractor in biome {}. Found {} eligible Pokémon.",
                         player.getName().getString(), typeName, biomeName, numEligible
                 );
 
+                // Consume the item unless in creative mode
+                if (!player.abilities.instabuild) {
+                    stack.shrink(1);
+                }
             } catch (Exception e) {
-                CustomConsumables.getLogger().error("Error activating Type Attractor", e);
+                // Detailed error logging
+                CustomConsumables.getLogger().error("Error activating Type Attractor. Stack trace:", e);
+                CustomConsumables.getLogger().error("Pixelmon version detected: 9.1.13");
+                CustomConsumables.getLogger().error("Player: {}, Type: {}", player.getName().getString(), type);
+
                 player.displayClientMessage(
                         new StringTextComponent(TextFormatting.RED + "Error: " + e.getMessage()),
                         true
                 );
-            }
 
-            // Consume the item unless in creative mode
-            if (!player.abilities.instabuild) {
-                stack.shrink(1);
+                player.displayClientMessage(
+                        new StringTextComponent(TextFormatting.RED + "Please report this error to the mod author with your logs"),
+                        true
+                );
             }
         }
 
         return stack;
+    }
+
+    /**
+     * Register the type boost directly with Pixelmon's internal systems
+     * Uses reflection to safely access Pixelmon's API without direct dependencies
+     */
+    private boolean registerTypeBoostWithPixelmon(ServerPlayerEntity player, String type) {
+        try {
+            // Attempt 1: Try SpawnRegistry (most modern approach)
+            try {
+                // Get SpawnRegistry class
+                Class<?> spawnRegistryClass = Class.forName("com.pixelmonmod.pixelmon.spawning.SpawnRegistry");
+
+                // Log detailed debug info
+                CustomConsumables.getLogger().info("SpawnRegistry class found: {}", spawnRegistryClass.getName());
+
+                // Look for registerTypeBoost method
+                Method[] methods = spawnRegistryClass.getMethods();
+                boolean methodFound = false;
+
+                for (Method method : methods) {
+                    if (method.getName().contains("registerTypeBoost") ||
+                            method.getName().contains("boostType") ||
+                            method.getName().contains("TypeBoost")) {
+
+                        CustomConsumables.getLogger().info("Found possible type boost method: {} with params: {}",
+                                method.getName(), Arrays.toString(method.getParameterTypes()));
+                        methodFound = true;
+                    }
+                }
+
+                if (!methodFound) {
+                    CustomConsumables.getLogger().warn("No type boost method found in SpawnRegistry");
+                }
+
+                // Try to get and invoke specific method
+                Method registerTypeBoostMethod = spawnRegistryClass.getMethod("registerTypeBoost",
+                        UUID.class, String.class, Float.TYPE, Integer.TYPE);
+
+                // Log before invocation
+                CustomConsumables.getLogger().info("Invoking registerTypeBoost with: {} {} {} {}",
+                        player.getUUID(), type.toUpperCase(), 10.0f, 3600);
+
+                // Call the method with a high multiplier (10x) for 3 minutes (3600 ticks)
+                registerTypeBoostMethod.invoke(null, player.getUUID(), type.toUpperCase(), 10.0f, 3600);
+
+                CustomConsumables.getLogger().info("Successfully registered type boost via SpawnRegistry");
+                return true;
+            } catch (Exception e) {
+                CustomConsumables.getLogger().warn("SpawnRegistry approach failed: {}", e.getMessage());
+            }
+
+            // Attempt 2: Use command directly - this is the most reliable for 9.1.13
+            try {
+                // Log command we're about to try
+                CustomConsumables.getLogger().info("Attempting command: pokespawn boosttype {} 10", type.toLowerCase());
+
+                player.getServer().getCommands().performCommand(
+                        player.getServer().createCommandSourceStack().withPermission(4),
+                        "pokespawn boosttype " + type.toLowerCase() + " 10"
+                );
+
+                CustomConsumables.getLogger().info("Successfully registered type boost via command");
+                return true;
+            } catch (Exception e) {
+                CustomConsumables.getLogger().warn("Command approach failed: {}", e.getMessage());
+            }
+
+            // Attempt 3: Try to use SpawnEvents
+            try {
+                // Get SpawnEvents class
+                Class<?> spawnEventsClass = Class.forName("com.pixelmonmod.pixelmon.api.events.spawning.SpawnEvents");
+
+                // Log available methods
+                Method[] methods = spawnEventsClass.getMethods();
+                CustomConsumables.getLogger().info("Available methods in SpawnEvents:");
+                for (Method method : methods) {
+                    CustomConsumables.getLogger().info("  - {}", method.getName());
+                }
+
+                // Look for type boost related method
+                Method registerMethod = null;
+                for (Method method : methods) {
+                    if (method.getName().toLowerCase().contains("type") &&
+                            method.getName().toLowerCase().contains("boost")) {
+                        registerMethod = method;
+                        break;
+                    }
+                }
+
+                if (registerMethod != null) {
+                    // Log the method we found
+                    CustomConsumables.getLogger().info("Found method: {} with params: {}",
+                            registerMethod.getName(), Arrays.toString(registerMethod.getParameterTypes()));
+
+                    // Try to invoke with common parameter patterns
+                    try {
+                        registerMethod.invoke(null, player.getUUID(), type.toUpperCase(), 10.0f, 3600);
+                    } catch (Exception e1) {
+                        try {
+                            registerMethod.invoke(null, player, type.toUpperCase(), 10.0f, 3600);
+                        } catch (Exception e2) {
+                            CustomConsumables.getLogger().warn("Failed to invoke registerMethod: {}", e2.getMessage());
+                        }
+                    }
+
+                    CustomConsumables.getLogger().info("Successfully registered type boost via SpawnEvents");
+                    return true;
+                } else {
+                    CustomConsumables.getLogger().warn("No suitable method found in SpawnEvents");
+                }
+            } catch (Exception e) {
+                CustomConsumables.getLogger().warn("SpawnEvents approach failed: {}", e.getMessage());
+                e.printStackTrace();
+            }
+
+            // If we reached here, all methods failed
+            CustomConsumables.getLogger().error("All attempts to register type boost with Pixelmon failed");
+            CustomConsumables.getLogger().error("Pixelmon version detected: 9.1.13");
+            CustomConsumables.getLogger().error("Player: {}, Type: {}", player.getName().getString(), type);
+
+            return false;
+        } catch (Exception e) {
+            CustomConsumables.getLogger().error("Critical error in registerTypeBoostWithPixelmon: {}", e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
     }
 
     /**
@@ -293,31 +457,6 @@ public class TypeAttractorItem extends Item {
                         1, 0, 0, 0, 0.05
                 );
             }
-        }
-    }
-
-    /**
-     * Try to spawn a Pokémon of the specified type immediately
-     */
-    private void trySpawnTypePokemon(ServerPlayerEntity player, String type) {
-        if (player.getServer() == null) return;
-
-        try {
-            // Try to spawn using command
-            player.getServer().getCommands().performCommand(
-                    player.getServer().createCommandSourceStack().withPermission(4),
-                    "pokespawn " + type.toLowerCase()
-            );
-
-            CustomConsumables.getLogger().info(
-                    "Attempted to spawn {} type for player {}",
-                    type, player.getName().getString()
-            );
-        } catch (Exception e) {
-            // Just log at debug level, this is a nice-to-have feature
-            CustomConsumables.getLogger().debug(
-                    "Error trying to spawn initial Pokémon: {}", e.getMessage()
-            );
         }
     }
 

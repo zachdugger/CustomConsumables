@@ -16,6 +16,8 @@ import net.minecraftforge.fml.LogicalSide;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.server.ServerLifecycleHooks;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -29,16 +31,15 @@ public class TypeSpawnManager {
     private static final Random RANDOM = new Random();
 
     // Type boost tracking
-    // Player UUID -> Last force spawn time
-    private final ConcurrentHashMap<UUID, Long> lastForceSpawnTime = new ConcurrentHashMap<>();
-    private static final long FORCE_SPAWN_COOLDOWN = 8000; // 8 second cooldown
+    // Player UUID -> Last notification time
+    private final ConcurrentHashMap<UUID, Long> lastNotificationTime = new ConcurrentHashMap<>();
 
-    // Spawn rate control
-    private static final int MIN_SPAWN_INTERVAL = 20 * 10; // 10 seconds
-    private static final int MAX_SPAWN_INTERVAL = 20 * 30; // 30 seconds
-    private int nextSpawnTick = MIN_SPAWN_INTERVAL;
+    // Track when we last sent a minute notification to each player
+    private static final Map<UUID, Integer> lastMinuteNotified = new HashMap<>();
 
-    // Private constructor for singleton
+    /**
+     * Private constructor for singleton
+     */
     private TypeSpawnManager() { }
 
     /**
@@ -52,55 +53,9 @@ public class TypeSpawnManager {
     }
 
     /**
-     * Try to force spawn a Pokémon of the specified type
-     */
-    public boolean tryForceSpawn(PlayerEntity player, String type) {
-        if (!PixelmonIntegration.isPixelmonLoaded()) return false;
-
-        // Check cooldown
-        UUID playerId = player.getUUID();
-        long currentTime = System.currentTimeMillis();
-
-        if (lastForceSpawnTime.containsKey(playerId)) {
-            long lastSpawn = lastForceSpawnTime.get(playerId);
-            if (currentTime - lastSpawn < FORCE_SPAWN_COOLDOWN) {
-                return false; // Still in cooldown
-            }
-        }
-
-        // Get the server
-        MinecraftServer server = player instanceof ServerPlayerEntity
-                ? ((ServerPlayerEntity) player).getServer()
-                : ServerLifecycleHooks.getCurrentServer();
-
-        if (server == null) return false;
-
-        // Try to spawn
-        boolean success = PixelmonIntegration.forceSpawnType(player, type);
-
-        // If spawn successful, update cooldown
-        if (success) {
-            lastForceSpawnTime.put(playerId, currentTime);
-
-            // Generate visual effect
-            if (player instanceof ServerPlayerEntity) {
-                spawnTypeBoostParticles((ServerPlayerEntity)player, type);
-            }
-
-            // Log the spawn attempt
-            CustomConsumables.getLogger().debug(
-                    "Forced spawn of type {} for player {}",
-                    type, player.getName().getString()
-            );
-        }
-
-        return success;
-    }
-
-    /**
      * Spawn visual particles based on Pokémon type
      */
-    private void spawnTypeBoostParticles(ServerPlayerEntity player, String type) {
+    public void spawnTypeBoostParticles(ServerPlayerEntity player, String type) {
         if (player == null || player.level == null) return;
 
         ServerWorld world = player.getLevel();
@@ -132,7 +87,7 @@ public class TypeSpawnManager {
         }
 
         // Create a spiral pattern
-        for (int i = 0; i < 30; i++) {
+        for (int i = 0; i < 20; i++) {
             double angle = i * 0.5;
             double radius = 2.0 * Math.sin(i * 0.1);
             double height = i * 0.05;
@@ -149,15 +104,11 @@ public class TypeSpawnManager {
     }
 
     /**
-     * Register a type boost for a player and immediately try to spawn
-     * FIX: Changed method signature to remove the eligiblePokemon parameter
+     * Register a type boost for a player without forcing spawns
      */
-    public void registerTypeBoost(PlayerEntity player, String type, int durationTicks, float multiplier) {
+    public void registerTypeBoost(PlayerEntity player, String type, int duration, float multiplier) {
         // Let the PixelmonIntegration handle storing the effect data
-        PixelmonIntegration.applyTypeBoost(player, type, durationTicks, multiplier);
-
-        // Try an immediate spawn
-        tryForceSpawn(player, type);
+        PixelmonIntegration.applyTypeBoost(player, type, duration, multiplier);
 
         // Log the registration
         CustomConsumables.getLogger().info(
@@ -185,36 +136,52 @@ public class TypeSpawnManager {
 
             // If effect is still active
             if (remainingTicks > 0) {
-                // Show a periodic reminder
+                UUID playerID = player.getUUID();
+
+                // Show a periodic reminder, but make sure we don't spam
                 if (remainingTicks % 1200 == 0) { // Every minute
+                    // Make sure we only notify once at each minute threshold
                     int minutesLeft = remainingTicks / 1200;
-                    String typeName = capitalize(type);
+                    Integer lastNotified = lastMinuteNotified.get(playerID);
 
-                    if (player instanceof ServerPlayerEntity) {
-                        ((ServerPlayerEntity) player).sendMessage(
-                                new StringTextComponent(TextFormatting.GREEN +
-                                        typeName + " Type Attractor: " + minutesLeft + " minute(s) remaining"),
-                                player.getUUID()
-                        );
+                    if (lastNotified == null || lastNotified != minutesLeft) {
+                        String typeName = capitalize(type);
 
-                        // Add some particles as a visual reminder
+                        if (player instanceof ServerPlayerEntity) {
+                            ((ServerPlayerEntity) player).sendMessage(
+                                    new StringTextComponent(TextFormatting.GREEN +
+                                            typeName + " Type Attractor: " + minutesLeft + " minute(s) remaining"),
+                                    player.getUUID()
+                            );
+
+                            // Add some particles as a visual reminder
+                            manager.spawnTypeBoostParticles((ServerPlayerEntity) player, type);
+
+                            // Update the last notification time
+                            lastMinuteNotified.put(playerID, minutesLeft);
+                        }
+                    }
+                }
+
+                // Occasional visual particles to give feedback, but not too often
+                if (remainingTicks % 400 == 0 && player instanceof ServerPlayerEntity) {
+                    // Add subtle visual feedback
+                    if (RANDOM.nextFloat() < 0.3f) {
                         manager.spawnTypeBoostParticles((ServerPlayerEntity) player, type);
                     }
                 }
 
-                // Periodic spawning
-                if (remainingTicks % manager.nextSpawnTick == 0) {
-                    boolean spawned = manager.tryForceSpawn(player, type);
+                // Occasional attempt to re-register boost with server
+                if (remainingTicks % 1000 == 0) {
+                    // Get the current multiplier
+                    float currentMultiplier = PixelmonIntegration.getTypeBoostMultiplier(player, 10.0f);
 
-                    // Adjust next spawn time based on success
-                    if (spawned) {
-                        // If we successfully spawned, wait a bit longer
-                        manager.nextSpawnTick = MIN_SPAWN_INTERVAL + RANDOM.nextInt(MAX_SPAWN_INTERVAL - MIN_SPAWN_INTERVAL);
-                    } else {
-                        // If spawn failed, try again sooner
-                        manager.nextSpawnTick = MIN_SPAWN_INTERVAL;
-                    }
+                    // Re-register just to be sure it's still active - use the existing values
+                    PixelmonIntegration.applyTypeBoost(player, type, remainingTicks, currentMultiplier);
                 }
+            } else {
+                // Effect expired, remove from notification tracking
+                lastMinuteNotified.remove(player.getUUID());
             }
         }
     }

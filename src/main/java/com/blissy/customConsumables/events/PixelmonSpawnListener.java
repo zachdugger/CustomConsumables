@@ -16,6 +16,7 @@ import net.minecraftforge.fml.LogicalSide;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.server.ServerLifecycleHooks;
 
+import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
@@ -81,13 +82,13 @@ public class PixelmonSpawnListener {
 
         } catch (Exception e) {
             // Log but don't crash
-            CustomConsumables.getLogger().debug("Error in onEntitySpawn: {}", e.getMessage());
+            CustomConsumables.getLogger().error("Error in onEntitySpawn: {}", e.getMessage());
+            e.printStackTrace();
         }
     }
 
     /**
      * Periodic tick to manage effects and try to spawn Pokémon
-     * FIX: Use ServerLifecycleHooks to get the server instead of event.getServer()
      */
     @SubscribeEvent
     public static void onServerTick(TickEvent.ServerTickEvent event) {
@@ -103,13 +104,39 @@ public class PixelmonSpawnListener {
             net.minecraft.server.MinecraftServer server = ServerLifecycleHooks.getCurrentServer();
             if (server == null) return;
 
-            // Try to spawn Pokémon for players with type attractors
-            for (PlayerEntity player : server.getPlayerList().getPlayers()) {
-                if (PixelmonIntegration.hasTypeBoost(player)) {
-                    trySpawnForPlayer(player);
-                }
+            // Every 10 minutes (12000 ticks), print debug info about active effects
+            if (tickCounter % 12000 == 0) {
+                printDebugInfo(server);
             }
         }
+    }
+
+    /**
+     * Print debug information about active effects
+     */
+    private static void printDebugInfo(net.minecraft.server.MinecraftServer server) {
+        CustomConsumables.getLogger().info("=== TYPE ATTRACTOR DEBUG INFO ===");
+
+        int playersWithTypeBoost = 0;
+
+        for (PlayerEntity player : server.getPlayerList().getPlayers()) {
+            if (PixelmonIntegration.hasTypeBoost(player)) {
+                playersWithTypeBoost++;
+
+                String type = PixelmonIntegration.getBoostedType(player);
+                int timeLeft = PixelmonIntegration.getTypeBoostDuration(player);
+                float multiplier = PixelmonIntegration.getTypeBoostMultiplier(player, 1.0f);
+
+                CustomConsumables.getLogger().info("Player {} has {} type boost with {}x multiplier ({} seconds remaining)",
+                        player.getName().getString(),
+                        type,
+                        multiplier,
+                        timeLeft / 20);
+            }
+        }
+
+        CustomConsumables.getLogger().info("Total players with active type boost: {}", playersWithTypeBoost);
+        CustomConsumables.getLogger().info("===================================");
     }
 
     /**
@@ -123,35 +150,46 @@ public class PixelmonSpawnListener {
         if (PixelmonIntegration.hasTypeBoost(player)) {
             String boostedType = PixelmonIntegration.getBoostedType(player);
 
-            // Try to determine if this Pokémon matches the player's boosted type
-            boolean matchesType = doesPokemonMatchType(event.getEntity(), boostedType, player);
+            // Attempt to check the Pokémon's type (might fail due to reflection)
+            boolean matchesType = false;
+            boolean typeCheckSuccess = false;
 
-            if (!matchesType) {
-                // This Pokémon doesn't match the player's type boost
-                // Decide whether to block based on the multiplier
-                float multiplier = PixelmonIntegration.getTypeBoostMultiplier(player, 1.0f);
-                float blockChance = Math.min(0.9f, 1.0f - (1.0f / multiplier));
+            // First try our own type checking with detailed debugging
+            try {
+                CustomConsumables.getLogger().debug("Checking if {} matches type {}", pokemonName, boostedType);
 
-                if (RANDOM.nextFloat() < blockChance) {
-                    // Block this spawn
-                    event.setCanceled(true);
+                // Get entity class and available methods for debugging
+                Class<?> entityClass = event.getEntity().getClass();
+                CustomConsumables.getLogger().debug("Entity class: {}", entityClass.getName());
 
-                    // Log the blocked spawn
-                    CustomConsumables.getLogger().debug(
-                            "Blocked spawn of {} for player {} with {} type boost",
-                            pokemonName, player.getName().getString(), boostedType
-                    );
+                matchesType = doesPokemonMatchType(event.getEntity(), boostedType);
+                typeCheckSuccess = true;
 
-                    // Try to spawn a replacement of the correct type
-                    if (RANDOM.nextFloat() < 0.3f) { // 30% chance to try replacement
-                        tryForceSpawn(player);
-                    }
+                CustomConsumables.getLogger().debug("Type check result: {} matches {}: {}",
+                        pokemonName, boostedType, matchesType);
+            } catch (Exception e) {
+                // Log detailed error information
+                CustomConsumables.getLogger().error("Type check failed for {}: {}", pokemonName, e.getMessage());
+                CustomConsumables.getLogger().error("Entity class: {}", event.getEntity().getClass().getName());
+                e.printStackTrace();
 
-                    return;
-                }
-            } else {
-                // This Pokémon matches the boosted type!
-                // Add visual feedback
+                // We don't want to block spawns due to technical errors
+                // Let Pixelmon's natural spawn system handle filtering
+                typeCheckSuccess = false;
+            }
+
+            // Only modify spawns if we were able to successfully check the type
+            if (typeCheckSuccess && !matchesType) {
+                // This Pokémon doesn't match our type filter, let Pixelmon handle it
+                // Don't cancel the event - the internal Pixelmon system will already be boosting the correct types
+                CustomConsumables.getLogger().debug(
+                        "Detected non-matching type: {} (not a {} type) for player {}. " +
+                                "Pixelmon's natural spawn system should be handling the boost.",
+                        pokemonName, boostedType, player.getName().getString()
+                );
+            } else if (matchesType) {
+                // This Pokémon matches our boosted type!
+                // Add visual feedback only
                 if (player instanceof ServerPlayerEntity) {
                     // Add some particles
                     if (event.getWorld() instanceof ServerWorld && RANDOM.nextFloat() < 0.4f) {
@@ -198,69 +236,136 @@ public class PixelmonSpawnListener {
     }
 
     /**
-     * Try to force spawn a Pokémon of the player's boosted type
+     * Enhanced method to check if a Pokémon matches a type with detailed debugging
      */
-    private static void tryForceSpawn(PlayerEntity player) {
-        // Check cooldown
-        UUID playerId = player.getUUID();
-        long currentTime = System.currentTimeMillis();
+    private static boolean doesPokemonMatchType(net.minecraft.entity.Entity entity, String targetType) {
+        try {
+            // Try each approach with detailed logging
+            CustomConsumables.getLogger().debug("Attempting to check if entity {} matches type {}",
+                    entity.getDisplayName().getString(), targetType);
 
-        if (spawnCooldowns.containsKey(playerId)) {
-            long lastSpawn = spawnCooldowns.get(playerId);
-            if (currentTime - lastSpawn < SPAWN_COOLDOWN_MS) {
-                return; // Still on cooldown
+            // Method 1: Try using Form approach (Pixelmon 9.1.x)
+            try {
+                Class<?> pixelmonClass = Class.forName("com.pixelmonmod.pixelmon.entities.pixelmon.PixelmonEntity");
+
+                if (pixelmonClass.isInstance(entity)) {
+                    // Get Pokemon object
+                    Method getPokemonMethod = pixelmonClass.getMethod("getPokemon");
+                    Object pokemon = getPokemonMethod.invoke(entity);
+
+                    // Try to get the form
+                    Class<?> pokemonClass = Class.forName("com.pixelmonmod.pixelmon.api.pokemon.Pokemon");
+
+                    // Debug the Pokemon object methods
+                    Method[] pokemonMethods = pokemonClass.getMethods();
+                    CustomConsumables.getLogger().debug("Pokemon object methods:");
+                    for (Method method : pokemonMethods) {
+                        if (method.getName().contains("Form") ||
+                                method.getName().contains("Type") ||
+                                method.getName().contains("Species")) {
+                            CustomConsumables.getLogger().debug("  - {}", method.getName());
+                        }
+                    }
+
+                    Method getFormMethod = pokemonClass.getMethod("getForm");
+                    Object form = getFormMethod.invoke(pokemon);
+
+                    // Debug form object methods
+                    Class<?> formClass = form.getClass();
+                    Method[] formMethods = formClass.getMethods();
+                    CustomConsumables.getLogger().debug("Form object methods:");
+                    for (Method method : formMethods) {
+                        if (method.getName().contains("Type")) {
+                            CustomConsumables.getLogger().debug("  - {}", method.getName());
+                        }
+                    }
+
+                    // Get the types from the form
+                    Method getTypesMethod = formClass.getMethod("getTypes");
+                    Object[] types = (Object[]) getTypesMethod.invoke(form);
+
+                    // Debug the types
+                    CustomConsumables.getLogger().debug("Found {} types: {}", types.length, java.util.Arrays.toString(types));
+
+                    // Check if any type matches our target
+                    for (Object type : types) {
+                        CustomConsumables.getLogger().debug("Comparing {} with {}", type.toString(), targetType);
+                        if (type.toString().equalsIgnoreCase(targetType)) {
+                            return true;
+                        }
+                    }
+
+                    return false;
+                }
+            } catch (Exception e) {
+                CustomConsumables.getLogger().warn("Method 1 (Form approach) failed: {}", e.getMessage());
             }
-        }
 
-        // Update cooldown
-        spawnCooldowns.put(playerId, currentTime);
+            // Method 2: Try Species approach
+            try {
+                Class<?> pixelmonClass = Class.forName("com.pixelmonmod.pixelmon.entities.pixelmon.PixelmonEntity");
 
-        // Get the player's boosted type
-        String type = PixelmonIntegration.getBoostedType(player);
-        if (type == null || type.isEmpty()) {
-            return;
-        }
+                if (pixelmonClass.isInstance(entity)) {
+                    // Get Pokemon object
+                    Method getPokemonMethod = pixelmonClass.getMethod("getPokemon");
+                    Object pokemon = getPokemonMethod.invoke(entity);
 
-        // Force spawn a Pokémon of this type
-        PixelmonIntegration.forceSpawnType(player, type);
-    }
+                    // Get species
+                    Class<?> pokemonClass = Class.forName("com.pixelmonmod.pixelmon.api.pokemon.Pokemon");
+                    Method getSpeciesMethod = pokemonClass.getMethod("getSpecies");
+                    Object species = getSpeciesMethod.invoke(pokemon);
 
-    /**
-     * Try to spawn Pokémon for a player as part of the periodic tick
-     */
-    private static void trySpawnForPlayer(PlayerEntity player) {
-        // Only try for players with type boosts
-        if (!PixelmonIntegration.hasTypeBoost(player)) {
-            return;
-        }
+                    // Debug species object
+                    CustomConsumables.getLogger().debug("Species: {}", species);
 
-        // Rate limit spawns
-        UUID playerId = player.getUUID();
-        long currentTime = System.currentTimeMillis();
+                    // Try to get types from species
+                    Class<?> speciesClass = species.getClass();
+                    Method[] speciesMethods = speciesClass.getMethods();
 
-        if (spawnCooldowns.containsKey(playerId)) {
-            long lastSpawn = spawnCooldowns.get(playerId);
-            if (currentTime - lastSpawn < SPAWN_COOLDOWN_MS) {
-                return;
+                    // Find methods related to types
+                    Method typeMethod = null;
+                    for (Method method : speciesMethods) {
+                        if (method.getName().contains("Type") && method.getParameterCount() == 0) {
+                            CustomConsumables.getLogger().debug("Found potential type method: {}", method.getName());
+                            typeMethod = method;
+
+                            // Prefer getTypes if available
+                            if (method.getName().equals("getTypes")) {
+                                break;
+                            }
+                        }
+                    }
+
+                    if (typeMethod != null) {
+                        Object result = typeMethod.invoke(species);
+
+                        if (result instanceof Object[]) {
+                            Object[] types = (Object[]) result;
+                            CustomConsumables.getLogger().debug("Found types: {}", java.util.Arrays.toString(types));
+
+                            for (Object type : types) {
+                                if (type.toString().equalsIgnoreCase(targetType)) {
+                                    return true;
+                                }
+                            }
+                        } else {
+                            CustomConsumables.getLogger().debug("Type method returned: {} ({})",
+                                    result, result.getClass().getName());
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                CustomConsumables.getLogger().warn("Method 2 (Species approach) failed: {}", e.getMessage());
             }
-        }
 
-        // Roll based on the multiplier - higher multiplier means more spawns
-        float multiplier = PixelmonIntegration.getTypeBoostMultiplier(player, 1.0f);
-        float spawnChance = Math.min(0.8f, (multiplier / 10.0f));
-
-        if (RANDOM.nextFloat() < spawnChance) {
-            // Update cooldown
-            spawnCooldowns.put(playerId, currentTime);
-
-            // Get the type and try to spawn
-            String type = PixelmonIntegration.getBoostedType(player);
-            PixelmonIntegration.forceSpawnType(player, type);
-
-            CustomConsumables.getLogger().debug(
-                    "Periodic spawn check: Spawned {} type for player {}",
-                    type, player.getName().getString()
-            );
+            // If all approaches fail, just check the name
+            // Let Pixelmon's natural spawn system handle the actual filtering
+            CustomConsumables.getLogger().warn("All type checking methods failed for {}", entity.getDisplayName().getString());
+            return false;
+        } catch (Exception e) {
+            CustomConsumables.getLogger().error("Critical error checking Pokémon type: {}", e.getMessage());
+            e.printStackTrace();
+            return false;
         }
     }
 
@@ -291,35 +396,6 @@ public class PixelmonSpawnListener {
     }
 
     /**
-     * Try to determine if a Pokémon entity matches a given type
-     * This uses server commands to avoid relying on direct Pixelmon API access
-     */
-    private static boolean doesPokemonMatchType(net.minecraft.entity.Entity entity, String type, PlayerEntity player) {
-        if (!(player instanceof ServerPlayerEntity)) return false;
-
-        // Use a command workaround:
-        // Rather than directly accessing Pixelmon types, we leverage the fact that
-        // the player's type filter already works with Pixelmon's spawn system.
-        // If this entity spawned naturally while a type filter is active,
-        // it's very likely to match the type (as the filter should be working).
-
-        // For naturally spawned Pokémon with a player's type filter active,
-        // we give a high probability that it's the right type
-        UUID playerId = player.getUUID();
-        if (PixelmonIntegration.hasTypeBoost(player)) {
-            String boostedType = PixelmonIntegration.getBoostedType(player);
-            if (boostedType.equalsIgnoreCase(type)) {
-                // Give a high probability that this is the right type (85%)
-                // This avoids needing to know the exact Pokémon types
-                return RANDOM.nextFloat() < 0.85f;
-            }
-        }
-
-        // If we can't determine, be conservative and return false
-        return false;
-    }
-
-    /**
      * Get the name of a Pokémon entity
      */
     private static String getPokemonName(net.minecraft.entity.Entity entity) {
@@ -341,18 +417,23 @@ public class PixelmonSpawnListener {
      * Try to make a Pokémon entity shiny
      */
     private static void makeShiny(net.minecraft.entity.Entity entity) {
-        if (entity instanceof ServerPlayerEntity) {
-            ServerPlayerEntity player = (ServerPlayerEntity) entity;
+        try {
+            Class<?> pixelmonClass = Class.forName("com.pixelmonmod.pixelmon.entities.pixelmon.PixelmonEntity");
 
-            // Use a command to try to make the targeted Pokémon shiny
-            try {
-                player.getServer().getCommands().performCommand(
-                        player.getServer().createCommandSourceStack().withPermission(4),
-                        "pokeedit shiny true"
-                );
-            } catch (Exception e) {
-                CustomConsumables.getLogger().debug("Error setting shiny status: {}", e.getMessage());
+            if (pixelmonClass.isInstance(entity)) {
+                // Get the Pokemon object
+                Method getPokemonMethod = pixelmonClass.getMethod("getPokemon");
+                Object pokemon = getPokemonMethod.invoke(entity);
+
+                // Set shiny
+                Class<?> pokemonClass = Class.forName("com.pixelmonmod.pixelmon.api.pokemon.Pokemon");
+                Method setShinyMethod = pokemonClass.getMethod("setShiny", boolean.class);
+                setShinyMethod.invoke(pokemon, true);
+
+                CustomConsumables.getLogger().info("Successfully made Pokémon shiny");
             }
+        } catch (Exception e) {
+            CustomConsumables.getLogger().error("Error making Pokémon shiny: {}", e.getMessage());
         }
     }
 

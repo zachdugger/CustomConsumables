@@ -14,6 +14,7 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.command.CommandSource;
 import net.minecraft.command.Commands;
 import net.minecraft.command.arguments.EntityArgument;
+import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.player.ServerPlayerEntity;
 import net.minecraft.item.ItemStack;
 import net.minecraft.util.text.StringTextComponent;
@@ -23,6 +24,7 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.ModList;
 
+import java.lang.reflect.Method;
 import java.util.List;
 
 @Mod.EventBusSubscriber(modid = CustomConsumables.MOD_ID)
@@ -141,7 +143,6 @@ public class CommandRegistration {
                                             PlayerEffectManager.applyTypeAttractorEffect(player, type, 3600, 1000.0f);
 
                                             // Also register with TypeSpawnManager for advanced features
-                                            // FIX: Removed the eligiblePokemon parameter
                                             TypeSpawnManager.getInstance().registerTypeBoost(player, type, 3600, 10.0f);
 
                                             String typeName = type.substring(0, 1).toUpperCase() + type.substring(1);
@@ -172,7 +173,6 @@ public class CommandRegistration {
                                                     PlayerEffectManager.applyTypeAttractorEffect(player, type, durationTicks, 1000.0f);
 
                                                     // Also register with TypeSpawnManager for advanced features
-                                                    // FIX: Removed the eligiblePokemon parameter
                                                     TypeSpawnManager.getInstance().registerTypeBoost(player, type, durationTicks, 10.0f);
 
                                                     String typeName = type.substring(0, 1).toUpperCase() + type.substring(1);
@@ -309,6 +309,129 @@ public class CommandRegistration {
                             }
 
                             return 1;
+                        }))
+                // Add new typeboost debug command
+                .then(Commands.literal("typeboost")
+                        .executes(ctx -> {
+                            PlayerEntity player = ctx.getSource().getPlayerOrException();
+
+                            if (PlayerEffectManager.hasTypeAttractorEffect(player)) {
+                                String type = PlayerEffectManager.getTypeAttractorType(player);
+                                int duration = PlayerEffectManager.getRemainingTypeBoostTime(player);
+                                float multiplier = PlayerEffectManager.getTypeAttractorChance(player, 0);
+
+                                ctx.getSource().sendSuccess(
+                                        new StringTextComponent(TextFormatting.GREEN + "Active type boost: " +
+                                                TextFormatting.YELLOW + type.toUpperCase() +
+                                                TextFormatting.GREEN + " with " +
+                                                TextFormatting.YELLOW + multiplier + "%" +
+                                                TextFormatting.GREEN + " boost for " +
+                                                TextFormatting.YELLOW + formatTime(duration)),
+                                        false
+                                );
+
+                                // Try to verify boost with Pixelmon's internal system
+                                boolean verificationAttempted = false;
+
+                                try {
+                                    // Try to access Pixelmon's SpawnRegistry to check
+                                    Class<?> spawnRegistryClass = Class.forName("com.pixelmonmod.pixelmon.spawning.SpawnRegistry");
+                                    Class<?> typeBoostClass = null;
+
+                                    // Try to find TypeBoost class
+                                    try {
+                                        typeBoostClass = Class.forName("com.pixelmonmod.pixelmon.spawning.TypeBoost");
+                                    } catch (ClassNotFoundException e) {
+                                        try {
+                                            typeBoostClass = Class.forName("com.pixelmonmod.pixelmon.api.spawning.TypeBoost");
+                                        } catch (ClassNotFoundException e2) {
+                                            // Nested classes
+                                            for (Class<?> nested : spawnRegistryClass.getClasses()) {
+                                                if (nested.getSimpleName().contains("TypeBoost")) {
+                                                    typeBoostClass = nested;
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    // Log what we found
+                                    ctx.getSource().sendSuccess(
+                                            new StringTextComponent(TextFormatting.GRAY + "Pixelmon classes found: " +
+                                                    (spawnRegistryClass != null ? "SpawnRegistry " : "") +
+                                                    (typeBoostClass != null ? "TypeBoost" : "")),
+                                            false
+                                    );
+
+                                    // Command verification
+                                    try {
+                                        // Try to execute boosttype command to see if it works
+                                        int existingDuration = duration;
+
+                                        ctx.getSource().getServer().getCommands().performCommand(
+                                                ctx.getSource().getServer().createCommandSourceStack().withPermission(4),
+                                                "pokespawn boosttype " + type.toLowerCase() + " 10"
+                                        );
+
+                                        ctx.getSource().sendSuccess(
+                                                new StringTextComponent(TextFormatting.GREEN + "Successfully executed boost command: " +
+                                                        TextFormatting.YELLOW + "pokespawn boosttype " + type.toLowerCase() + " 10"),
+                                                false
+                                        );
+
+                                        verificationAttempted = true;
+                                    } catch (Exception e) {
+                                        ctx.getSource().sendSuccess(
+                                                new StringTextComponent(TextFormatting.RED + "Command verification failed: " + e.getMessage()),
+                                                false
+                                        );
+                                    }
+
+                                    // Detailed diagnostic info
+                                    ctx.getSource().sendSuccess(
+                                            new StringTextComponent(TextFormatting.GRAY + "Pixelmon version: 9.1.13"),
+                                            false
+                                    );
+
+                                } catch (Exception e) {
+                                    ctx.getSource().sendSuccess(
+                                            new StringTextComponent(TextFormatting.RED + "Verification error: " + e.getMessage()),
+                                            false
+                                    );
+                                }
+
+                                if (!verificationAttempted) {
+                                    ctx.getSource().sendSuccess(
+                                            new StringTextComponent(TextFormatting.YELLOW + "Could not verify boost with Pixelmon system"),
+                                            false
+                                    );
+
+                                    // Re-apply boost via command
+                                    try {
+                                        ctx.getSource().getServer().getCommands().performCommand(
+                                                ctx.getSource().getServer().createCommandSourceStack().withPermission(4),
+                                                "pokespawn boosttype " + type.toLowerCase() + " 10"
+                                        );
+
+                                        ctx.getSource().sendSuccess(
+                                                new StringTextComponent(TextFormatting.GREEN + "Re-applied boost via command"),
+                                                false
+                                        );
+                                    } catch (Exception e) {
+                                        ctx.getSource().sendSuccess(
+                                                new StringTextComponent(TextFormatting.RED + "Failed to re-apply boost: " + e.getMessage()),
+                                                false
+                                        );
+                                    }
+                                }
+
+                                return 1;
+                            } else {
+                                ctx.getSource().sendFailure(
+                                        new StringTextComponent("No active type boost found")
+                                );
+                                return 0;
+                            }
                         }));
 
         // Register the command

@@ -63,17 +63,18 @@ public class PixelmonIntegration {
         if (!PIXELMON_LOADED || !(player instanceof ServerPlayerEntity)) return false;
 
         try {
-            // Use Pixelmon's pokespawn command with the type parameter
+            // Use Pixelmon's pokespawn command with the proper type parameter format
             ServerPlayerEntity serverPlayer = (ServerPlayerEntity) player;
 
             // Generate a random offset for more natural looking spawns
             int xOffset = RANDOM.nextInt(10) - 5;
             int zOffset = RANDOM.nextInt(10) - 5;
 
-            // Execute the command with the type name
+            // IMPORTANT: Use the correct command format for type-based spawning
+            // The correct format is "pokespawn random <type>" not "pokespawn <type>"
             serverPlayer.getServer().getCommands().performCommand(
                     serverPlayer.getServer().createCommandSourceStack().withPermission(4),
-                    "pokespawn " + type.toLowerCase() + " ~" + xOffset + " ~ ~" + zOffset
+                    "pokespawn random " + type.toLowerCase() + " ~" + xOffset + " ~ ~" + zOffset
             );
 
             // Notify player with cooldown
@@ -83,7 +84,7 @@ public class PixelmonIntegration {
 
             return true;
         } catch (Exception e) {
-            CustomConsumables.getLogger().debug("Error forcing spawn: {}", e.getMessage());
+            CustomConsumables.getLogger().error("Error forcing spawn: {}", e.getMessage());
             return false;
         }
     }
@@ -371,8 +372,7 @@ public class PixelmonIntegration {
         if (playerData.contains(TYPE_BOOST_KEY)) {
             CompoundNBT effect = playerData.getCompound(TYPE_BOOST_KEY);
             int duration = effect.getInt(DURATION_KEY);
-            if (duration > 0) {
-                duration--;
+            if (duration > 0) {duration--;
                 effect.putInt(DURATION_KEY, duration);
                 playerData.put(TYPE_BOOST_KEY, effect);
                 updated = true;
