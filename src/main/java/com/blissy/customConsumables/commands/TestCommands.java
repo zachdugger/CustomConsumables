@@ -2,8 +2,8 @@ package com.blissy.customConsumables.commands;
 
 import com.blissy.customConsumables.CustomConsumables;
 import com.blissy.customConsumables.effects.PlayerEffectManager;
+import com.blissy.customConsumables.events.LegacyCompatibility.PixelmonSpawnHandler;
 import com.blissy.customConsumables.events.PixelmonCommandHooks;
-import com.blissy.customConsumables.events.PixelmonSpawnHandler;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import net.minecraft.command.CommandSource;
@@ -137,4 +137,5 @@ public class TestCommands {
 
                             return 1;
                         })));
-    }}
+    }
+}

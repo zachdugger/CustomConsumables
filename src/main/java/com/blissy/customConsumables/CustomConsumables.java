@@ -1,7 +1,6 @@
 package com.blissy.customConsumables;
 
-import com.blissy.customConsumables.events.DynamicTypeSpawnHandler;
-import com.blissy.customConsumables.events.PokemonTypeDataHandler;
+import com.blissy.customConsumables.events.TypeSpawnManager;
 import com.blissy.customConsumables.init.ItemInit;
 import net.minecraft.item.ItemGroup;
 import net.minecraft.item.ItemStack;
@@ -68,11 +67,13 @@ public class CustomConsumables {
                     LOGGER.info("Setting up Pixelmon integration");
 
                     // Initialize the type data handler
-                    PokemonTypeDataHandler typeHandler = PokemonTypeDataHandler.getInstance();
-                    typeHandler.initialize();
+                    com.blissy.customConsumables.data.PokemonTypeDataHandler.getInstance().initialize();
 
                     // Initialize the dynamic spawn handler
                     DynamicTypeSpawnHandler.initialize();
+
+                    // Initialize the type spawn manager
+                    TypeSpawnManager.getInstance();
 
                     LOGGER.info("Pixelmon integration setup complete");
                 } catch (Exception e) {

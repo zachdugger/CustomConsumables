@@ -1,6 +1,7 @@
 package com.blissy.customConsumables.events;
 
 import com.blissy.customConsumables.CustomConsumables;
+import com.blissy.customConsumables.events.LegacyCompatibility.TypeFilterHandler;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.nbt.CompoundNBT;
 import net.minecraftforge.eventbus.api.EventPriority;
