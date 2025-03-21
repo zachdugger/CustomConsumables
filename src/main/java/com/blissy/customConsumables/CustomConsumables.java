@@ -1,6 +1,6 @@
 package com.blissy.customConsumables;
 
-import com.blissy.customConsumables.events.TypeSpawnManager;
+import com.blissy.customConsumables.compat.PixelmonIntegration;
 import com.blissy.customConsumables.init.ItemInit;
 import net.minecraft.item.ItemGroup;
 import net.minecraft.item.ItemStack;
@@ -17,7 +17,7 @@ import net.minecraftforge.fml.ModList;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-@Mod(CustomConsumables.MOD_ID)
+@Mod("customconsumables")
 public class CustomConsumables {
     public static final String MOD_ID = "customconsumables";
 
@@ -69,15 +69,18 @@ public class CustomConsumables {
                     // Initialize the type data handler
                     com.blissy.customConsumables.data.PokemonTypeDataHandler.getInstance().initialize();
 
-                    // Initialize the dynamic spawn handler
-                    DynamicTypeSpawnHandler.initialize();
-
                     // Initialize the type spawn manager
-                    TypeSpawnManager.getInstance();
+                    com.blissy.customConsumables.events.TypeSpawnManager.getInstance();
+
+                    // Initialize the Pixelmon integration helper
+                    PixelmonIntegration.initialize();
+
+                    // Register our event listener
+                    MinecraftForge.EVENT_BUS.register(com.blissy.customConsumables.events.PixelmonSpawnListener.class);
 
                     LOGGER.info("Pixelmon integration setup complete");
                 } catch (Exception e) {
-                    LOGGER.error("Error during Pixelmon integration: {}", e.getMessage());
+                    LOGGER.error("Error during Pixelmon integration: {}", e.getMessage(), e);
                 }
             });
         } else {
@@ -103,7 +106,7 @@ public class CustomConsumables {
     /**
      * Event handler to notify players when they join about the mod
      */
-    @Mod.EventBusSubscriber(modid = MOD_ID)
+    @Mod.EventBusSubscriber(modid = "customconsumables")
     public static class PlayerEvents {
         @SubscribeEvent
         public static void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {

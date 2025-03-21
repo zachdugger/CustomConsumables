@@ -1,9 +1,8 @@
 package com.blissy.customConsumables.events;
 
 import com.blissy.customConsumables.CustomConsumables;
-import com.blissy.customConsumables.events.LegacyCompatibility.TypeFilterHandler;
+import com.blissy.customConsumables.effects.PlayerEffectManager;
 import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.nbt.CompoundNBT;
 import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -17,7 +16,7 @@ import java.util.UUID;
  * Handles type filtering for Pixelmon spawns
  * Uses event reflection to avoid direct dependencies on Pixelmon
  */
-@Mod.EventBusSubscriber(modid = CustomConsumables.MOD_ID)
+@Mod.EventBusSubscriber(modid = "customconsumables")
 public class PixelmonTypeFilter {
     // Reflection cache for Pixelmon classes and methods
     private static boolean initialized = false;
@@ -68,12 +67,12 @@ public class PixelmonTypeFilter {
 
         try {
             // Check if player has an active type filter
-            if (!TypeFilterHandler.hasTypeFilter(player)) {
+            if (!hasTypeFilter(player)) {
                 return true; // Allow spawn if no filter
             }
 
             // Get the filter type
-            String typeFilter = TypeFilterHandler.getTypeFilter(player);
+            String typeFilter = getTypeFilter(player);
             if (typeFilter.isEmpty()) {
                 return true; // Allow spawn if filter is empty
             }
@@ -126,11 +125,11 @@ public class PixelmonTypeFilter {
      * This is called through reflection from PixelmonTypeFilterHook
      */
     public static boolean checkTypeMatch(PlayerEntity player, String pokemonType1, String pokemonType2) {
-        if (!TypeFilterHandler.hasTypeFilter(player)) {
+        if (!hasTypeFilter(player)) {
             return true; // No filter, allow spawn
         }
 
-        String typeFilter = TypeFilterHandler.getTypeFilter(player).toLowerCase();
+        String typeFilter = getTypeFilter(player).toLowerCase();
         if (typeFilter.isEmpty()) {
             return true; // Empty filter, allow spawn
         }
@@ -138,5 +137,59 @@ public class PixelmonTypeFilter {
         // Check if either type matches the filter
         return pokemonType1.toLowerCase().equals(typeFilter) ||
                 pokemonType2.toLowerCase().equals(typeFilter);
+    }
+
+    /**
+     * Check if a player has an active type filter
+     */
+    public static boolean hasTypeFilter(PlayerEntity player) {
+        if (player == null) {
+            return false;
+        }
+
+        // First check our cache
+        UUID playerUUID = player.getUUID();
+        if (playerTypeFilters.containsKey(playerUUID)) {
+            return !playerTypeFilters.get(playerUUID).isEmpty();
+        }
+
+        // Then check player effect manager
+        if (PlayerEffectManager.hasTypeAttractorEffect(player)) {
+            String type = PlayerEffectManager.getTypeAttractorType(player);
+            if (type != null && !type.isEmpty()) {
+                // Cache for future use
+                playerTypeFilters.put(playerUUID, type);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Get the active type filter for a player
+     */
+    public static String getTypeFilter(PlayerEntity player) {
+        if (player == null) {
+            return "";
+        }
+
+        // First check our cache
+        UUID playerUUID = player.getUUID();
+        if (playerTypeFilters.containsKey(playerUUID)) {
+            return playerTypeFilters.get(playerUUID);
+        }
+
+        // Then check player effect manager
+        if (PlayerEffectManager.hasTypeAttractorEffect(player)) {
+            String type = PlayerEffectManager.getTypeAttractorType(player);
+            if (type != null && !type.isEmpty()) {
+                // Cache for future use
+                playerTypeFilters.put(playerUUID, type);
+                return type;
+            }
+        }
+
+        return "";
     }
 }

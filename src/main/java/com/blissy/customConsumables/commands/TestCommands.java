@@ -2,24 +2,28 @@ package com.blissy.customConsumables.commands;
 
 import com.blissy.customConsumables.CustomConsumables;
 import com.blissy.customConsumables.effects.PlayerEffectManager;
-import com.blissy.customConsumables.events.LegacyCompatibility.PixelmonSpawnHandler;
-import com.blissy.customConsumables.events.PixelmonCommandHooks;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import net.minecraft.command.CommandSource;
 import net.minecraft.command.Commands;
 import net.minecraft.entity.player.ServerPlayerEntity;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.text.StringTextComponent;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.fml.server.ServerLifecycleHooks;
+
+import java.util.Random;
 
 /**
  * Adds test commands for verifying the legendary lure functionality
  */
-@Mod.EventBusSubscriber(modid = CustomConsumables.MOD_ID)
+@Mod.EventBusSubscriber(modid = "customconsumables")
 public class TestCommands {
+
+    private static final Random random = new Random();
 
     @SubscribeEvent
     public static void onRegisterCommands(RegisterCommandsEvent event) {
@@ -60,7 +64,7 @@ public class TestCommands {
                                     new StringTextComponent(TextFormatting.YELLOW + "This will be applied during normal spawn checks."), false);
 
                             // Attempt to force a legendary spawn check
-                            boolean result = PixelmonSpawnHandler.forceSpawnTick(player);
+                            boolean result = forceSpawnLegendary(player);
 
                             if (!result) {
                                 context.getSource().sendSuccess(
@@ -137,5 +141,57 @@ public class TestCommands {
 
                             return 1;
                         })));
+    }
+
+    /**
+     * Helper method to force a legendary spawn for a player
+     * This is a simplified implementation for the proof of concept
+     */
+    private static boolean forceSpawnLegendary(ServerPlayerEntity player) {
+        try {
+            // Check if player has legendary lure effect
+            if (!PlayerEffectManager.hasLegendaryLureEffect(player)) {
+                return false;
+            }
+
+            // Get server instance
+            MinecraftServer server = player.getServer();
+            if (server == null) {
+                server = ServerLifecycleHooks.getCurrentServer();
+            }
+
+            if (server == null) {
+                return false;
+            }
+
+            // Get chance from the player
+            float chance = PlayerEffectManager.getLegendaryLureChance(player, 100.0f);
+
+            // Roll for spawn
+            float roll = random.nextFloat() * 100.0f;
+            boolean success = roll <= chance;
+
+            if (success) {
+                // Try to spawn a legendary using command
+                server.getCommands().performCommand(
+                        server.createCommandSourceStack().withPermission(4),
+                        "pokespawn legendary"
+                );
+
+                // Notify the player
+                player.sendMessage(
+                        new StringTextComponent(TextFormatting.GOLD +
+                                "Your Legendary Lure attracted a legendary Pokémon!"),
+                        player.getUUID()
+                );
+
+                return true;
+            }
+
+            return false;
+        } catch (Exception e) {
+            CustomConsumables.getLogger().error("Error in forceSpawnLegendary", e);
+            return false;
+        }
     }
 }

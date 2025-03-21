@@ -2,11 +2,12 @@ package com.blissy.customConsumables.compat;
 
 import com.blissy.customConsumables.CustomConsumables;
 import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.entity.player.ServerPlayerEntity;
 import net.minecraft.nbt.CompoundNBT;
 import net.minecraftforge.fml.ModList;
 
 /**
- * Improved Pixelmon integration class that handles all interactions with the Pixelmon mod.
+ * Simplified Pixelmon integration class that handles all interactions with the Pixelmon mod.
  * This uses NBT data to pass information between mods without direct dependencies.
  */
 public class PixelmonIntegration {
@@ -27,10 +28,59 @@ public class PixelmonIntegration {
     private static final String OVERRIDE_KEY = "override"; // For shiny, indicates absolute replacement
 
     /**
+     * Initialize the Pixelmon integration
+     */
+    public static void initialize() {
+        if (!PIXELMON_LOADED) return;
+
+        CustomConsumables.getLogger().info("Initializing Pixelmon integration");
+    }
+
+    /**
      * Check if Pixelmon is loaded
      */
     public static boolean isPixelmonLoaded() {
         return PIXELMON_LOADED;
+    }
+
+    /**
+     * Force spawn a specific Pokémon type near a player
+     */
+    public static boolean forceSpawnType(PlayerEntity player, String type) {
+        if (!PIXELMON_LOADED || !(player instanceof ServerPlayerEntity)) return false;
+
+        try {
+            // Use command to force spawn
+            ServerPlayerEntity serverPlayer = (ServerPlayerEntity) player;
+            serverPlayer.getServer().getCommands().performCommand(
+                    serverPlayer.getServer().createCommandSourceStack().withPermission(4),
+                    "pokespawn " + type.toLowerCase()
+            );
+            return true;
+        } catch (Exception e) {
+            CustomConsumables.getLogger().error("Error forcing spawn: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Force spawn a specific Pokémon species near a player
+     */
+    public static boolean forceSpawnSpecies(PlayerEntity player, String speciesName) {
+        if (!PIXELMON_LOADED || !(player instanceof ServerPlayerEntity)) return false;
+
+        try {
+            // Use command to force spawn
+            ServerPlayerEntity serverPlayer = (ServerPlayerEntity) player;
+            serverPlayer.getServer().getCommands().performCommand(
+                    serverPlayer.getServer().createCommandSourceStack().withPermission(4),
+                    "pokespawn " + speciesName.toLowerCase()
+            );
+            return true;
+        } catch (Exception e) {
+            CustomConsumables.getLogger().error("Error forcing spawn: {}", e.getMessage());
+            return false;
+        }
     }
 
     /**
