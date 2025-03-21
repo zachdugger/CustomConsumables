@@ -4,13 +4,11 @@ import com.blissy.customConsumables.CustomConsumables;
 import com.blissy.customConsumables.items.TypeAttractorItem;
 import com.blissy.customConsumables.init.ItemInit;
 import com.blissy.customConsumables.effects.PlayerEffectManager;
-import com.blissy.customConsumables.events.TypeSpawnManager;
+import com.blissy.customConsumables.compat.PixelmonIntegration;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.builder.LiteralArgumentBuilder;
-import com.mojang.brigadier.context.CommandContext;
-import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import net.minecraft.command.CommandSource;
 import net.minecraft.command.Commands;
 import net.minecraft.command.arguments.EntityArgument;
@@ -24,9 +22,11 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.ModList;
 
-import java.lang.reflect.Method;
 import java.util.List;
 
+/**
+ * Command handler for Custom Consumables
+ */
 @Mod.EventBusSubscriber(modid = CustomConsumables.MOD_ID)
 public class CommandRegistration {
 
@@ -42,26 +42,7 @@ public class CommandRegistration {
         // Register the main command
         LiteralArgumentBuilder<CommandSource> customitemCommand = Commands.literal("customitem")
                 .requires(source -> source.hasPermission(2)) // Requires permission level 2 (op)
-                .then(Commands.literal("legendary")
-                        .executes(ctx -> giveItem(ctx.getSource(), new ItemStack(ItemInit.LEGENDARY_LURE.get())))
-                        .then(Commands.argument("count", IntegerArgumentType.integer(1, 64))
-                                .executes(ctx -> giveItem(ctx.getSource(), new ItemStack(ItemInit.LEGENDARY_LURE.get(),
-                                        IntegerArgumentType.getInteger(ctx, "count")))))
-                        .then(Commands.argument("player", EntityArgument.player())
-                                .executes(ctx -> giveItemToTarget(ctx, new ItemStack(ItemInit.LEGENDARY_LURE.get())))
-                                .then(Commands.argument("count", IntegerArgumentType.integer(1, 64))
-                                        .executes(ctx -> giveItemToTarget(ctx, new ItemStack(ItemInit.LEGENDARY_LURE.get(),
-                                                IntegerArgumentType.getInteger(ctx, "count")))))))
-                .then(Commands.literal("shiny")
-                        .executes(ctx -> giveItem(ctx.getSource(), new ItemStack(ItemInit.SHINY_CHARM.get())))
-                        .then(Commands.argument("count", IntegerArgumentType.integer(1, 64))
-                                .executes(ctx -> giveItem(ctx.getSource(), new ItemStack(ItemInit.SHINY_CHARM.get(),
-                                        IntegerArgumentType.getInteger(ctx, "count")))))
-                        .then(Commands.argument("player", EntityArgument.player())
-                                .executes(ctx -> giveItemToTarget(ctx, new ItemStack(ItemInit.SHINY_CHARM.get())))
-                                .then(Commands.argument("count", IntegerArgumentType.integer(1, 64))
-                                        .executes(ctx -> giveItemToTarget(ctx, new ItemStack(ItemInit.SHINY_CHARM.get(),
-                                                IntegerArgumentType.getInteger(ctx, "count")))))))
+                // Type items
                 .then(Commands.literal("type")
                         .then(Commands.argument("type", StringArgumentType.word())
                                 .suggests((context, builder) -> {
@@ -122,7 +103,7 @@ public class CommandRegistration {
                                                     ((TypeAttractorItem)typeAttractor.getItem()).setType(typeAttractor, type);
                                                     return giveItem(player, typeAttractor, context.getSource());
                                                 })))))
-                // Add a command to apply effect directly
+                // Apply type boost directly via effect
                 .then(Commands.literal("effect")
                         .then(Commands.literal("type")
                                 .then(Commands.argument("type", StringArgumentType.word())
@@ -142,8 +123,8 @@ public class CommandRegistration {
                                             // Default 3 minutes (3600 ticks) with 10x multiplier
                                             PlayerEffectManager.applyTypeAttractorEffect(player, type, 3600, 1000.0f);
 
-                                            // Also register with TypeSpawnManager for advanced features
-                                            TypeSpawnManager.getInstance().registerTypeBoost(player, type, 3600, 10.0f);
+                                            // Also register with Pixelmon's system
+                                            PixelmonIntegration.applyTypeBoost(player, type);
 
                                             String typeName = type.substring(0, 1).toUpperCase() + type.substring(1);
                                             context.getSource().sendSuccess(
@@ -172,8 +153,8 @@ public class CommandRegistration {
                                                     // Apply effect
                                                     PlayerEffectManager.applyTypeAttractorEffect(player, type, durationTicks, 1000.0f);
 
-                                                    // Also register with TypeSpawnManager for advanced features
-                                                    TypeSpawnManager.getInstance().registerTypeBoost(player, type, durationTicks, 10.0f);
+                                                    // Register with Pixelmon too
+                                                    PixelmonIntegration.applyTypeBoost(player, type);
 
                                                     String typeName = type.substring(0, 1).toUpperCase() + type.substring(1);
                                                     context.getSource().sendSuccess(
@@ -183,64 +164,8 @@ public class CommandRegistration {
                                                             true);
 
                                                     return 1;
-                                                }))))
-                        .then(Commands.literal("legendary")
-                                .executes(context -> {
-                                    // Apply legendary lure effect for 3 minutes (3600 ticks)
-                                    ServerPlayerEntity player = context.getSource().getPlayerOrException();
-                                    PlayerEffectManager.applyLegendaryLureEffect(player, 3600, 100.0f);
-
-                                    context.getSource().sendSuccess(
-                                            new StringTextComponent(TextFormatting.GOLD + "Applied Legendary Lure effect for 3 minutes"),
-                                            true);
-
-                                    return 1;
-                                })
-                                .then(Commands.argument("duration", IntegerArgumentType.integer(1, 3600))
-                                        .executes(context -> {
-                                            int durationSeconds = IntegerArgumentType.getInteger(context, "duration");
-                                            ServerPlayerEntity player = context.getSource().getPlayerOrException();
-
-                                            // Convert seconds to ticks
-                                            int durationTicks = durationSeconds * 20;
-                                            PlayerEffectManager.applyLegendaryLureEffect(player, durationTicks, 100.0f);
-
-                                            context.getSource().sendSuccess(
-                                                    new StringTextComponent(TextFormatting.GOLD + "Applied Legendary Lure effect for " +
-                                                            durationSeconds + " seconds"),
-                                                    true);
-
-                                            return 1;
-                                        })))
-                        .then(Commands.literal("shiny")
-                                .executes(context -> {
-                                    // Apply shiny charm effect for 3 minutes (3600 ticks)
-                                    ServerPlayerEntity player = context.getSource().getPlayerOrException();
-                                    PlayerEffectManager.applyShinyBoostEffect(player, 3600, 50.0f);
-
-                                    context.getSource().sendSuccess(
-                                            new StringTextComponent(TextFormatting.AQUA + "Applied Shiny Charm effect (50% chance) for 3 minutes"),
-                                            true);
-
-                                    return 1;
-                                })
-                                .then(Commands.argument("duration", IntegerArgumentType.integer(1, 3600))
-                                        .executes(context -> {
-                                            int durationSeconds = IntegerArgumentType.getInteger(context, "duration");
-                                            ServerPlayerEntity player = context.getSource().getPlayerOrException();
-
-                                            // Convert seconds to ticks
-                                            int durationTicks = durationSeconds * 20;
-                                            PlayerEffectManager.applyShinyBoostEffect(player, durationTicks, 50.0f);
-
-                                            context.getSource().sendSuccess(
-                                                    new StringTextComponent(TextFormatting.AQUA + "Applied Shiny Charm effect (50% chance) for " +
-                                                            durationSeconds + " seconds"),
-                                                    true);
-
-                                            return 1;
-                                        }))))
-                // Add a debug command to check if mod is working
+                                                })))))
+                // Debug command
                 .then(Commands.literal("debug")
                         .executes(ctx -> {
                             ctx.getSource().sendSuccess(new StringTextComponent(TextFormatting.GREEN +
@@ -250,188 +175,50 @@ public class CommandRegistration {
                             ctx.getSource().sendSuccess(new StringTextComponent(TextFormatting.YELLOW +
                                     "Pixelmon detected: " + (pixelmonLoaded ? "Yes" : "No")), false);
 
-                            ctx.getSource().sendSuccess(new StringTextComponent(TextFormatting.AQUA +
-                                    "Available items:"), false);
+                            if (!pixelmonLoaded) {
+                                ctx.getSource().sendSuccess(new StringTextComponent(TextFormatting.RED +
+                                        "Warning: The Custom Consumables mod requires Pixelmon to be installed."), false);
+                                return 1;
+                            }
 
-                            ctx.getSource().sendSuccess(new StringTextComponent(TextFormatting.GOLD +
-                                    " - Legendary Lure (1% chance to spawn a legendary)"), false);
                             ctx.getSource().sendSuccess(new StringTextComponent(TextFormatting.AQUA +
-                                    " - Shiny Charm (50% chance to spawn a shiny)"), false);
-                            ctx.getSource().sendSuccess(new StringTextComponent(TextFormatting.RED +
-                                    " - Type Attractor (for " + POKEMON_TYPES.size() + " types)"), false);
+                                    "Available type attractors:"), false);
 
-                            // If player, check for active effects
+                            for (String type : POKEMON_TYPES) {
+                                ctx.getSource().sendSuccess(new StringTextComponent(" - " + TextFormatting.GREEN +
+                                        type.substring(0, 1).toUpperCase() + type.substring(1)), false);
+                            }
+
+                            // Check for active effects
                             try {
                                 ServerPlayerEntity player = ctx.getSource().getPlayerOrException();
 
-                                boolean hasAnyEffect = false;
+                                boolean hasTypeEffect = PlayerEffectManager.hasTypeAttractorEffect(player);
 
-                                // Check for legendary lure effect
-                                if (PlayerEffectManager.hasLegendaryLureEffect(player)) {
-                                    int remainingTicks = PlayerEffectManager.getLegendaryLureRemainingDuration(player);
-                                    float chance = PlayerEffectManager.getLegendaryLureChance(player, 0);
-
-                                    ctx.getSource().sendSuccess(new StringTextComponent(TextFormatting.GOLD +
-                                            "Active Legendary Lure: " + formatTime(remainingTicks) + " remaining (" + chance + "% chance)"), false);
-                                    hasAnyEffect = true;
-                                }
-
-                                // Check for shiny charm effect
-                                if (PlayerEffectManager.hasShinyBoostEffect(player)) {
-                                    int remainingTicks = PlayerEffectManager.getRemainingShinyBoostTime(player);
-                                    float chance = PlayerEffectManager.getShinyBoostMultiplier(player, 0);
-
-                                    ctx.getSource().sendSuccess(new StringTextComponent(TextFormatting.AQUA +
-                                            "Active Shiny Charm: " + formatTime(remainingTicks) + " remaining (" + chance + "% chance)"), false);
-                                    hasAnyEffect = true;
-                                }
-
-                                // Check for type attractor effect
-                                if (PlayerEffectManager.hasTypeAttractorEffect(player)) {
-                                    int remainingTicks = PlayerEffectManager.getRemainingTypeBoostTime(player);
+                                if (hasTypeEffect) {
                                     String type = PlayerEffectManager.getTypeAttractorType(player);
-                                    float multiplier = PlayerEffectManager.getTypeAttractorChance(player, 0);
+                                    int duration = PlayerEffectManager.getRemainingTypeBoostTime(player);
+                                    float multiplier = PlayerEffectManager.getTypeAttractorChance(player, 0) / 100.0f;
 
                                     String typeName = type.substring(0, 1).toUpperCase() + type.substring(1);
                                     ctx.getSource().sendSuccess(new StringTextComponent(TextFormatting.GREEN +
-                                            "Active Type Attractor: " + typeName + " for " + formatTime(remainingTicks) +
-                                            " (" + multiplier + "% boost)"), false);
-                                    hasAnyEffect = true;
-                                }
-
-                                if (!hasAnyEffect) {
+                                            "Active Type Attractor: " + TextFormatting.BOLD + typeName +
+                                            TextFormatting.RESET + TextFormatting.GREEN + " for " + formatTime(duration) +
+                                            " (" + (multiplier * 100) + "% boost)"), false);
+                                } else {
                                     ctx.getSource().sendSuccess(new StringTextComponent(TextFormatting.GRAY +
                                             "No active effects"), false);
-                                }
 
-                            } catch (CommandSyntaxException e) {
+                                    ctx.getSource().sendSuccess(new StringTextComponent(TextFormatting.YELLOW +
+                                            "Use /customitem type <type> to get a Type Attractor"), false);
+                                }
+                            } catch (Exception e) {
                                 // Not a player, skip effect check
+                                ctx.getSource().sendSuccess(new StringTextComponent(TextFormatting.YELLOW +
+                                        "Commands must be run as a player to see active effects"), false);
                             }
 
                             return 1;
-                        }))
-                // Add new typeboost debug command
-                .then(Commands.literal("typeboost")
-                        .executes(ctx -> {
-                            PlayerEntity player = ctx.getSource().getPlayerOrException();
-
-                            if (PlayerEffectManager.hasTypeAttractorEffect(player)) {
-                                String type = PlayerEffectManager.getTypeAttractorType(player);
-                                int duration = PlayerEffectManager.getRemainingTypeBoostTime(player);
-                                float multiplier = PlayerEffectManager.getTypeAttractorChance(player, 0);
-
-                                ctx.getSource().sendSuccess(
-                                        new StringTextComponent(TextFormatting.GREEN + "Active type boost: " +
-                                                TextFormatting.YELLOW + type.toUpperCase() +
-                                                TextFormatting.GREEN + " with " +
-                                                TextFormatting.YELLOW + multiplier + "%" +
-                                                TextFormatting.GREEN + " boost for " +
-                                                TextFormatting.YELLOW + formatTime(duration)),
-                                        false
-                                );
-
-                                // Try to verify boost with Pixelmon's internal system
-                                boolean verificationAttempted = false;
-
-                                try {
-                                    // Try to access Pixelmon's SpawnRegistry to check
-                                    Class<?> spawnRegistryClass = Class.forName("com.pixelmonmod.pixelmon.spawning.SpawnRegistry");
-                                    Class<?> typeBoostClass = null;
-
-                                    // Try to find TypeBoost class
-                                    try {
-                                        typeBoostClass = Class.forName("com.pixelmonmod.pixelmon.spawning.TypeBoost");
-                                    } catch (ClassNotFoundException e) {
-                                        try {
-                                            typeBoostClass = Class.forName("com.pixelmonmod.pixelmon.api.spawning.TypeBoost");
-                                        } catch (ClassNotFoundException e2) {
-                                            // Nested classes
-                                            for (Class<?> nested : spawnRegistryClass.getClasses()) {
-                                                if (nested.getSimpleName().contains("TypeBoost")) {
-                                                    typeBoostClass = nested;
-                                                    break;
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                    // Log what we found
-                                    ctx.getSource().sendSuccess(
-                                            new StringTextComponent(TextFormatting.GRAY + "Pixelmon classes found: " +
-                                                    (spawnRegistryClass != null ? "SpawnRegistry " : "") +
-                                                    (typeBoostClass != null ? "TypeBoost" : "")),
-                                            false
-                                    );
-
-                                    // Command verification
-                                    try {
-                                        // Try to execute boosttype command to see if it works
-                                        int existingDuration = duration;
-
-                                        ctx.getSource().getServer().getCommands().performCommand(
-                                                ctx.getSource().getServer().createCommandSourceStack().withPermission(4),
-                                                "pokespawn boosttype " + type.toLowerCase() + " 10"
-                                        );
-
-                                        ctx.getSource().sendSuccess(
-                                                new StringTextComponent(TextFormatting.GREEN + "Successfully executed boost command: " +
-                                                        TextFormatting.YELLOW + "pokespawn boosttype " + type.toLowerCase() + " 10"),
-                                                false
-                                        );
-
-                                        verificationAttempted = true;
-                                    } catch (Exception e) {
-                                        ctx.getSource().sendSuccess(
-                                                new StringTextComponent(TextFormatting.RED + "Command verification failed: " + e.getMessage()),
-                                                false
-                                        );
-                                    }
-
-                                    // Detailed diagnostic info
-                                    ctx.getSource().sendSuccess(
-                                            new StringTextComponent(TextFormatting.GRAY + "Pixelmon version: 9.1.13"),
-                                            false
-                                    );
-
-                                } catch (Exception e) {
-                                    ctx.getSource().sendSuccess(
-                                            new StringTextComponent(TextFormatting.RED + "Verification error: " + e.getMessage()),
-                                            false
-                                    );
-                                }
-
-                                if (!verificationAttempted) {
-                                    ctx.getSource().sendSuccess(
-                                            new StringTextComponent(TextFormatting.YELLOW + "Could not verify boost with Pixelmon system"),
-                                            false
-                                    );
-
-                                    // Re-apply boost via command
-                                    try {
-                                        ctx.getSource().getServer().getCommands().performCommand(
-                                                ctx.getSource().getServer().createCommandSourceStack().withPermission(4),
-                                                "pokespawn boosttype " + type.toLowerCase() + " 10"
-                                        );
-
-                                        ctx.getSource().sendSuccess(
-                                                new StringTextComponent(TextFormatting.GREEN + "Re-applied boost via command"),
-                                                false
-                                        );
-                                    } catch (Exception e) {
-                                        ctx.getSource().sendSuccess(
-                                                new StringTextComponent(TextFormatting.RED + "Failed to re-apply boost: " + e.getMessage()),
-                                                false
-                                        );
-                                    }
-                                }
-
-                                return 1;
-                            } else {
-                                ctx.getSource().sendFailure(
-                                        new StringTextComponent("No active type boost found")
-                                );
-                                return 0;
-                            }
                         }));
 
         // Register the command
@@ -440,14 +227,14 @@ public class CommandRegistration {
         CustomConsumables.getLogger().info("Registered CustomConsumables commands successfully");
     }
 
-    private static int giveItemToTarget(CommandContext<CommandSource> context, ItemStack stack) throws CommandSyntaxException {
-        ServerPlayerEntity player = EntityArgument.getPlayer(context, "player");
-        return giveItem(player, stack, context.getSource());
-    }
-
-    private static int giveItem(CommandSource source, ItemStack stack) throws CommandSyntaxException {
-        ServerPlayerEntity player = source.getPlayerOrException();
-        return giveItem(player, stack, source);
+    private static int giveItem(CommandSource source, ItemStack stack) {
+        try {
+            ServerPlayerEntity player = source.getPlayerOrException();
+            return giveItem(player, stack, source);
+        } catch (Exception e) {
+            source.sendFailure(new StringTextComponent("Error: Must be run as a player"));
+            return 0;
+        }
     }
 
     private static int giveItem(ServerPlayerEntity player, ItemStack stack, CommandSource source) {

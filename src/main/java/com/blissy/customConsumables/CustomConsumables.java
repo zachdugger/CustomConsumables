@@ -1,6 +1,5 @@
 package com.blissy.customConsumables;
 
-import com.blissy.customConsumables.compat.PixelmonIntegration;
 import com.blissy.customConsumables.init.ItemInit;
 import net.minecraft.item.ItemGroup;
 import net.minecraft.item.ItemStack;
@@ -28,7 +27,7 @@ public class CustomConsumables {
         @Override
         public ItemStack makeIcon() {
             // Return the first registered item as the tab icon
-            return new ItemStack(ItemInit.LEGENDARY_LURE.get());
+            return new ItemStack(ItemInit.TYPE_ATTRACTOR.get());
         }
     };
 
@@ -60,67 +59,20 @@ public class CustomConsumables {
         if (pixelmonLoaded) {
             LOGGER.info("CustomConsumables is integrated with Pixelmon");
             LOGGER.info("Type Attractor now boosts spawn rates of specific types by 1000%");
-
-            // Register data functions if server supports them
-            event.enqueueWork(() -> {
-                try {
-                    LOGGER.info("Setting up Pixelmon integration");
-
-                    // Initialize the type data handler
-                    com.blissy.customConsumables.data.PokemonTypeDataHandler.getInstance().initialize();
-
-                    // Initialize the type spawn manager
-                    com.blissy.customConsumables.events.TypeSpawnManager.getInstance();
-
-                    // Initialize the Pixelmon integration helper
-                    PixelmonIntegration.initialize();
-
-                    // Register our event listener
-                    MinecraftForge.EVENT_BUS.register(com.blissy.customConsumables.events.PixelmonSpawnListener.class);
-
-                    LOGGER.info("Pixelmon integration setup complete");
-                } catch (Exception e) {
-                    LOGGER.error("Error during Pixelmon integration: {}", e.getMessage(), e);
-                }
-            });
         } else {
-            LOGGER.info("CustomConsumables will work without Pixelmon features");
+            LOGGER.warn("Pixelmon not detected! CustomConsumables requires Pixelmon to function properly.");
         }
 
         LOGGER.info("CustomConsumables setup complete");
-        LOGGER.info("Available items:");
-        LOGGER.info(" - Legendary Lure (1% chance to spawn a legendary Pokémon)");
-        LOGGER.info(" - Shiny Charm (50% chance to spawn a shiny Pokémon)");
-        LOGGER.info(" - Type Attractor (Boosts specified type spawn rates by 1000%)");
-        LOGGER.info("Use /customitem debug to verify mod is working in-game");
     }
 
     /**
-     * Comprehensive check for Pixelmon availability
-     * @return true if Pixelmon is loaded and API is accessible
+     * Check for Pixelmon availability
+     * @return true if Pixelmon is loaded
      */
     private boolean checkPixelmonAvailability() {
-        // First, check if the mod is loaded
-        boolean modLoaded = ModList.get().isLoaded("pixelmon");
-        if (!modLoaded) {
-            LOGGER.warn("Pixelmon mod is not loaded");
-            return false;
-        }
-
-        // Then, verify API accessibility
-        try {
-            // Attempt to load a core Pixelmon class
-            Class.forName("com.pixelmonmod.pixelmon.api.pokemon.Pokemon");
-            LOGGER.info("Pixelmon API successfully verified");
-            return true;
-        } catch (ClassNotFoundException e) {
-            LOGGER.error("Pixelmon mod is loaded, but API classes are not accessible");
-            LOGGER.error("Possible causes:");
-            LOGGER.error(" - Incompatible Pixelmon version");
-            LOGGER.error(" - Incomplete mod installation");
-            LOGGER.error(" - Classpath configuration issue");
-            return false;
-        }
+        // Check if the mod is loaded
+        return ModList.get().isLoaded("pixelmon");
     }
 
     /**
@@ -154,6 +106,15 @@ public class CustomConsumables {
                 if (ModList.get().isLoaded("pixelmon")) {
                     event.getPlayer().sendMessage(
                             new StringTextComponent(TextFormatting.GREEN + "Pixelmon integration is enabled"),
+                            event.getPlayer().getUUID()
+                    );
+                } else {
+                    event.getPlayer().sendMessage(
+                            new StringTextComponent(TextFormatting.RED + "Warning: Pixelmon mod not detected!"),
+                            event.getPlayer().getUUID()
+                    );
+                    event.getPlayer().sendMessage(
+                            new StringTextComponent(TextFormatting.RED + "CustomConsumables requires Pixelmon to function properly."),
                             event.getPlayer().getUUID()
                     );
                 }
