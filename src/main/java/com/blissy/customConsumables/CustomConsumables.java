@@ -54,7 +54,7 @@ public class CustomConsumables {
         LOGGER.info("CustomConsumables setup starting");
 
         // Check for Pixelmon
-        boolean pixelmonLoaded = ModList.get().isLoaded("pixelmon");
+        boolean pixelmonLoaded = checkPixelmonAvailability();
         LOGGER.info("Pixelmon detected: {}", pixelmonLoaded ? "Yes" : "No");
 
         if (pixelmonLoaded) {
@@ -93,6 +93,34 @@ public class CustomConsumables {
         LOGGER.info(" - Shiny Charm (50% chance to spawn a shiny Pokémon)");
         LOGGER.info(" - Type Attractor (Boosts specified type spawn rates by 1000%)");
         LOGGER.info("Use /customitem debug to verify mod is working in-game");
+    }
+
+    /**
+     * Comprehensive check for Pixelmon availability
+     * @return true if Pixelmon is loaded and API is accessible
+     */
+    private boolean checkPixelmonAvailability() {
+        // First, check if the mod is loaded
+        boolean modLoaded = ModList.get().isLoaded("pixelmon");
+        if (!modLoaded) {
+            LOGGER.warn("Pixelmon mod is not loaded");
+            return false;
+        }
+
+        // Then, verify API accessibility
+        try {
+            // Attempt to load a core Pixelmon class
+            Class.forName("com.pixelmonmod.pixelmon.api.pokemon.Pokemon");
+            LOGGER.info("Pixelmon API successfully verified");
+            return true;
+        } catch (ClassNotFoundException e) {
+            LOGGER.error("Pixelmon mod is loaded, but API classes are not accessible");
+            LOGGER.error("Possible causes:");
+            LOGGER.error(" - Incompatible Pixelmon version");
+            LOGGER.error(" - Incomplete mod installation");
+            LOGGER.error(" - Classpath configuration issue");
+            return false;
+        }
     }
 
     /**

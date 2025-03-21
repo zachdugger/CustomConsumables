@@ -2,6 +2,7 @@ package com.blissy.customConsumables.effects;
 
 import com.blissy.customConsumables.CustomConsumables;
 import com.blissy.customConsumables.compat.PixelmonIntegration;
+import com.blissy.customConsumables.events.TypeSpawnManager;
 import com.blissy.customConsumables.events.VisualFeedbackSystem;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.entity.player.ServerPlayerEntity;
@@ -157,6 +158,41 @@ public class PlayerEffectManager {
             PixelmonIntegration.applyShinyBoost(player, durationTicks, absoluteChance);
         }
 
+        // Add visual feedback
+        if (player instanceof ServerPlayerEntity) {
+            ServerPlayerEntity serverPlayer = (ServerPlayerEntity) player;
+
+            // Send message
+            serverPlayer.sendMessage(
+                    new StringTextComponent(TextFormatting.AQUA + "Shiny Charm activated! " +
+                            TextFormatting.YELLOW + absoluteChance + "% chance to spawn shiny Pokémon for " +
+                            formatTime(durationTicks)),
+                    player.getUUID()
+            );
+
+            // Play sound
+            player.level.playSound(null, player.getX(), player.getY(), player.getZ(),
+                    net.minecraft.util.SoundEvents.EXPERIENCE_ORB_PICKUP, net.minecraft.util.SoundCategory.PLAYERS,
+                    1.0F, 1.0F);
+
+            // Add particles
+            if (player.level instanceof net.minecraft.world.server.ServerWorld) {
+                net.minecraft.world.server.ServerWorld world = (net.minecraft.world.server.ServerWorld) player.level;
+
+                for (int i = 0; i < 50; i++) {
+                    double offsetX = random.nextDouble() * 2 - 1;
+                    double offsetY = random.nextDouble() * 2;
+                    double offsetZ = random.nextDouble() * 2 - 1;
+
+                    world.sendParticles(
+                            net.minecraft.particles.ParticleTypes.END_ROD,
+                            player.getX() + offsetX, player.getY() + offsetY, player.getZ() + offsetZ,
+                            1, 0, 0, 0, 0.05
+                    );
+                }
+            }
+        }
+
         // Log effect application
         CustomConsumables.getLogger().info("Applied shiny boost effect to player {} with absolute {}% chance for {} ticks",
                 player.getName().getString(), absoluteChance, durationTicks);
@@ -236,10 +272,6 @@ public class PlayerEffectManager {
         // Update cache
         playerEffectsCache.put(player.getUUID(), playerData);
 
-        // Apply to Pixelmon integration if available
-        if (PixelmonIntegration.isPixelmonLoaded()) {
-            PixelmonIntegration.applyHiddenAbilityBoost(player, durationTicks, chance);
-        }
 
         // Log effect application
         CustomConsumables.getLogger().info("Applied hidden ability effect to player {} with {}% chance for {} ticks",
@@ -411,93 +443,40 @@ public class PlayerEffectManager {
         return roll <= (1.0f / multiplier); // Inverse relation to multiplier
     }
 
-    //
-    // Legacy Methods for Compatibility
-    //
-
     /**
-     * Legacy method for compatibility with other classes
+     * Determines if a Pokémon spawn should be forced to be shiny
+     * based on player's active effects.
+     *
+     * @param player The player to check for effects
+     * @return true if the spawn should be shiny
      */
-    public static void applyLegendaryBoost(PlayerEntity player, int duration) {
-        applyLegendaryLureEffect(player, duration, 100.0f);
-    }
+    public static boolean shouldBeShiny(PlayerEntity player) {
+        if (player == null) return false;
 
-    /**
-     * Legacy method for compatibility with other classes
-     */
-    public static void applyShinyBoost(PlayerEntity player, int duration) {
-        // Changed to absolute 50% chance instead of 3x multiplier
-        applyShinyBoostEffect(player, duration, 50.0f);
-    }
+        boolean hasShinyEffect = hasShinyBoostEffect(player);
+        if (!hasShinyEffect) return false;
 
-    /**
-     * Legacy method for compatibility with other classes
-     */
-    public static void applyHiddenAbilityBoost(PlayerEntity player, int duration) {
-        applyHiddenAbilityEffect(player, duration, 100.0f);
-    }
+        float chance = getShinyBoostMultiplier(player, 0); // Get absolute percentage
 
-    /**
-     * Legacy method for compatibility with other classes
-     */
-    public static void applyTypeBoost(PlayerEntity player, String type, int duration) {
-        // 500% multiplier for type boost
-        applyTypeAttractorEffect(player, type, duration, 500.0f);
-    }
+        // Roll for the chance (now using percentage directly)
+        float roll = random.nextFloat() * 100.0f;
+        boolean success = roll <= chance;
 
-    /**
-     * Legacy method for compatibility with other classes
-     */
-    public static int getRemainingLegendaryBoostTime(PlayerEntity player) {
-        CompoundNBT playerData = getPlayerData(player);
-        if (playerData != null && playerData.contains(LEGENDARY_LURE_KEY)) {
-            CompoundNBT effect = playerData.getCompound(LEGENDARY_LURE_KEY);
-            return effect.getInt(DURATION_KEY);
+        // Debug output
+        if (success && player instanceof ServerPlayerEntity) {
+            ((ServerPlayerEntity) player).sendMessage(
+                    new StringTextComponent(TextFormatting.AQUA +
+                            "★ Shiny boost activated! Pokémon will be shiny! ★"),
+                    player.getUUID()
+            );
+
+            CustomConsumables.getLogger().info(
+                    "Player {} rolled {} vs {}% for shiny. SUCCESS!",
+                    player.getName().getString(), roll, chance
+            );
         }
-        return 0;
-    }
 
-    /**
-     * Legacy method for compatibility with other classes
-     */
-    public static int getRemainingShinyBoostTime(PlayerEntity player) {
-        CompoundNBT playerData = getPlayerData(player);
-        if (playerData != null && playerData.contains(SHINY_BOOST_KEY)) {
-            CompoundNBT effect = playerData.getCompound(SHINY_BOOST_KEY);
-            return effect.getInt(DURATION_KEY);
-        }
-        return 0;
-    }
-
-    /**
-     * Legacy method for compatibility with other classes
-     */
-    public static int getRemainingHiddenAbilityBoostTime(PlayerEntity player) {
-        CompoundNBT playerData = getPlayerData(player);
-        if (playerData != null && playerData.contains(HIDDEN_ABILITY_BOOST_KEY)) {
-            CompoundNBT effect = playerData.getCompound(HIDDEN_ABILITY_BOOST_KEY);
-            return effect.getInt(DURATION_KEY);
-        }
-        return 0;
-    }
-
-    /**
-     * Legacy method for compatibility with other classes
-     */
-    public static int getRemainingTypeBoostTime(PlayerEntity player) {
-        CompoundNBT playerData = getPlayerData(player);
-        if (playerData != null && playerData.contains(TYPE_BOOST_KEY)) {
-            CompoundNBT effect = playerData.getCompound(TYPE_BOOST_KEY);
-            return effect.getInt(DURATION_KEY);
-        }
-        return 0;
-    }
-
-    /**
-     * Legacy method for compatibility with other classes
-     */
-    public static String getTypeBoost(PlayerEntity player) {
-        return getTypeAttractorType(player);
+        return success;
     }
 
     //
@@ -651,38 +630,90 @@ public class PlayerEffectManager {
     }
 
     /**
-     * Determines if a Pokémon spawn should be forced to be shiny
-     * based on player's active effects.
-     *
-     * @param player The player to check for effects
-     * @return true if the spawn should be shiny
+     * Format ticks into a nice time string
      */
-    public static boolean shouldBeShiny(PlayerEntity player) {
-        if (player == null) return false;
+    private static String formatTime(int ticks) {
+        int seconds = ticks / 20;
+        int minutes = seconds / 60;
+        seconds %= 60;
 
-        boolean hasShinyEffect = hasShinyBoostEffect(player);
-        if (!hasShinyEffect) return false;
+        return minutes > 0 ? minutes + "m " + seconds + "s" : seconds + "s";
+    }
 
-        float chance = getShinyBoostMultiplier(player, 0); // Get absolute percentage
+    //
+    // Legacy Methods for Compatibility
+    //
 
-        // Roll for the chance (now using percentage directly)
-        float roll = random.nextFloat() * 100.0f;
-        boolean success = roll <= chance;
+    /**
+     * Legacy method for compatibility with other classes
+     */
+    public static void applyLegendaryBoost(PlayerEntity player, int duration) {
+        applyLegendaryLureEffect(player, duration, 100.0f);
+    }
 
-        // Debug output
-        if (success && player instanceof ServerPlayerEntity) {
-            ((ServerPlayerEntity) player).sendMessage(
-                    new StringTextComponent(TextFormatting.AQUA +
-                            "★ Shiny boost activated! Pokémon will be shiny! ★"),
-                    player.getUUID()
-            );
+    /**
+     * Legacy method for compatibility with other classes
+     */
+    public static void applyShinyBoost(PlayerEntity player, int duration) {
+        // Changed to absolute 50% chance instead of 3x multiplier
+        applyShinyBoostEffect(player, duration, 50.0f);
+    }
 
-            CustomConsumables.getLogger().info(
-                    "Player {} rolled {} vs {}% for shiny. SUCCESS!",
-                    player.getName().getString(), roll, chance
-            );
+    /**
+     * Legacy method for compatibility with other classes
+     */
+    public static void applyHiddenAbilityBoost(PlayerEntity player, int duration) {
+        applyHiddenAbilityEffect(player, duration, 100.0f);
+    }
+
+    /**
+     * Legacy method for compatibility with other classes
+     */
+    public static void applyTypeBoost(PlayerEntity player, String type, int duration) {
+        // 1000% multiplier for type boost
+        applyTypeAttractorEffect(player, type, duration, 1000.0f);
+    }
+
+    /**
+     * Legacy method for compatibility with other classes
+     */
+    public static int getRemainingLegendaryBoostTime(PlayerEntity player) {
+        CompoundNBT playerData = getPlayerData(player);
+        if (playerData != null && playerData.contains(LEGENDARY_LURE_KEY)) {
+            CompoundNBT effect = playerData.getCompound(LEGENDARY_LURE_KEY);
+            return effect.getInt(DURATION_KEY);
         }
+        return 0;
+    }
 
-        return success;
+    /**
+     * Legacy method for compatibility with other classes
+     */
+    public static int getRemainingShinyBoostTime(PlayerEntity player) {
+        CompoundNBT playerData = getPlayerData(player);
+        if (playerData != null && playerData.contains(SHINY_BOOST_KEY)) {
+            CompoundNBT effect = playerData.getCompound(SHINY_BOOST_KEY);
+            return effect.getInt(DURATION_KEY);
+        }
+        return 0;
+    }
+
+    /**
+     * Legacy method for compatibility with other classes
+     */
+    public static int getRemainingTypeBoostTime(PlayerEntity player) {
+        CompoundNBT playerData = getPlayerData(player);
+        if (playerData != null && playerData.contains(TYPE_BOOST_KEY)) {
+            CompoundNBT effect = playerData.getCompound(TYPE_BOOST_KEY);
+            return effect.getInt(DURATION_KEY);
+        }
+        return 0;
+    }
+
+    /**
+     * Legacy method for compatibility with other classes
+     */
+    public static String getTypeBoost(PlayerEntity player) {
+        return getTypeAttractorType(player);
     }
 }

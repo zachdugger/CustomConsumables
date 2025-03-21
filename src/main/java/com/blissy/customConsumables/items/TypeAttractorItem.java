@@ -2,6 +2,7 @@ package com.blissy.customConsumables.items;
 
 import com.blissy.customConsumables.CustomConsumables;
 import com.blissy.customConsumables.data.PokemonTypeDataHandler;
+import com.blissy.customConsumables.effects.PlayerEffectManager;
 import com.blissy.customConsumables.events.TypeSpawnManager;
 import com.blissy.customConsumables.init.ItemInit;
 import net.minecraft.client.util.ITooltipFlag;
@@ -12,31 +13,34 @@ import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.item.UseAction;
 import net.minecraft.nbt.CompoundNBT;
-import net.minecraft.particles.ParticleTypes;
-import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.Hand;
 import net.minecraft.util.SoundCategory;
 import net.minecraft.util.SoundEvents;
-import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.StringTextComponent;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraft.world.World;
 import net.minecraft.world.biome.Biome;
-import net.minecraft.world.server.ServerWorld;
 import net.minecraftforge.fml.ModList;
 
 import javax.annotation.Nullable;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
 
 public class TypeAttractorItem extends Item {
     private static final Random RANDOM = new Random();
-    private static final int DEFAULT_DURATION = 2 * 60 * 20; // 2 minutes in ticks
+    private static final int DEFAULT_DURATION = 3 * 60 * 20; // 3 minutes in ticks
     private static final float TYPE_MULTIPLIER = 10.0f; // 1000% boost
     private final String defaultType;
+
+    // Valid Pokémon types
+    private static final List<String> VALID_TYPES = Arrays.asList(
+            "normal", "fire", "water", "grass", "electric", "ice", "fighting", "poison",
+            "ground", "flying", "psychic", "bug", "rock", "ghost", "dragon", "dark",
+            "steel", "fairy");
 
     // Color mappings for different types (for particle effects)
     private static final java.util.Map<String, int[]> TYPE_COLORS = new java.util.HashMap<>();
@@ -65,10 +69,18 @@ public class TypeAttractorItem extends Item {
 
     public TypeAttractorItem(Properties properties, String defaultType) {
         super(properties);
-        this.defaultType = defaultType.toLowerCase();
+        this.defaultType = validateType(defaultType);
 
         // Initialize the Pokemon data handler when the item is created
-        com.blissy.customConsumables.data.PokemonTypeDataHandler.getInstance().initialize();
+        PokemonTypeDataHandler.getInstance().initialize();
+    }
+
+    /**
+     * Validates and normalizes a type string
+     */
+    private String validateType(String type) {
+        String normalized = type.toLowerCase();
+        return VALID_TYPES.contains(normalized) ? normalized : "fire";
     }
 
     @Override
@@ -92,11 +104,15 @@ public class TypeAttractorItem extends Item {
 
             try {
                 // Get eligible Pokémon for this player's biome and the selected type
-                Set<String> eligiblePokemon = com.blissy.customConsumables.data.PokemonTypeDataHandler.getInstance()
+                Set<String> eligiblePokemon = PokemonTypeDataHandler.getInstance()
                         .getEligiblePokemonForPlayer(player, type);
 
-                // Register the type boost with our manager
-                TypeSpawnManager.getInstance().registerTypeBoost(player, type, DEFAULT_DURATION, TYPE_MULTIPLIER, eligiblePokemon);
+                // Apply the effect directly to the player
+                PlayerEffectManager.applyTypeAttractorEffect(player, type, DEFAULT_DURATION, TYPE_MULTIPLIER);
+
+                // Also register with the spawn manager for advanced features
+                // FIX: Pass only the correct number of arguments (type, duration, multiplier)
+                TypeSpawnManager.getInstance().registerTypeBoost(player, type, DEFAULT_DURATION, TYPE_MULTIPLIER);
 
                 // Send info to the player
                 player.displayClientMessage(
@@ -152,16 +168,12 @@ public class TypeAttractorItem extends Item {
                                     "No " + typeName + " type Pokémon found for this biome. Using global type list."),
                             true
                     );
-
-                    // Fall back to all Pokémon of this type
-                    Set<String> allTypePokemons = com.blissy.customConsumables.data.PokemonTypeDataHandler.getInstance().getPokemonOfType(type);
-                    TypeSpawnManager.getInstance().registerTypeBoost(player, type, DEFAULT_DURATION, TYPE_MULTIPLIER, allTypePokemons);
                 }
 
                 // Create a visual effect
                 createTypeBoostEffect(player, type);
 
-                // Try to immediately spawn a Pokémon of this type if possible
+                // Try to immediately spawn a Pokémon of this type
                 trySpawnTypePokemon(player, type);
 
                 // Log the usage
@@ -191,9 +203,9 @@ public class TypeAttractorItem extends Item {
      * Creates a visual particle effect based on the Pokémon type
      */
     private void createTypeBoostEffect(ServerPlayerEntity player, String type) {
-        if (!(player.level instanceof ServerWorld)) return;
+        if (!(player.level instanceof net.minecraft.world.server.ServerWorld)) return;
 
-        ServerWorld world = (ServerWorld) player.level;
+        net.minecraft.world.server.ServerWorld world = (net.minecraft.world.server.ServerWorld) player.level;
         int[] typeColor = TYPE_COLORS.getOrDefault(type.toLowerCase(), new int[]{255, 255, 255});
 
         // Play sound based on type
@@ -227,30 +239,59 @@ public class TypeAttractorItem extends Item {
 
             // Choose particle based on type
             if (type.equalsIgnoreCase("fire")) {
-                world.sendParticles(ParticleTypes.FLAME,
-                        x, player.getY() + height, z, 1, 0, 0, 0, 0.01);
+                world.sendParticles(
+                        net.minecraft.particles.ParticleTypes.FLAME,
+                        x, player.getY() + height, z,
+                        1, 0, 0, 0, 0.01
+                );
             } else if (type.equalsIgnoreCase("water")) {
-                world.sendParticles(ParticleTypes.DRIPPING_WATER,
-                        x, player.getY() + height, z, 1, 0, 0, 0, 0.01);
+                world.sendParticles(
+                        net.minecraft.particles.ParticleTypes.DRIPPING_WATER,
+                        x, player.getY() + height, z,
+                        1, 0, 0, 0, 0.01
+                );
             } else if (type.equalsIgnoreCase("electric")) {
-                world.sendParticles(ParticleTypes.FIREWORK,
-                        x, player.getY() + height, z, 1, 0, 0, 0, 0.01);
+                world.sendParticles(
+                        net.minecraft.particles.ParticleTypes.FIREWORK,
+                        x, player.getY() + height, z,
+                        1, 0, 0, 0, 0.01
+                );
             } else if (type.equalsIgnoreCase("ice")) {
-                world.sendParticles(ParticleTypes.ITEM_SNOWBALL,
-                        x, player.getY() + height, z, 1, 0, 0, 0, 0.01);
+                world.sendParticles(
+                        net.minecraft.particles.ParticleTypes.ITEM_SNOWBALL,
+                        x, player.getY() + height, z,
+                        1, 0, 0, 0, 0.01
+                );
+            } else if (type.equalsIgnoreCase("grass")) {
+                world.sendParticles(
+                        net.minecraft.particles.ParticleTypes.COMPOSTER,
+                        x, player.getY() + height, z,
+                        1, 0, 0, 0, 0.01
+                );
+            } else if (type.equalsIgnoreCase("dragon")) {
+                world.sendParticles(
+                        net.minecraft.particles.ParticleTypes.DRAGON_BREATH,
+                        x, player.getY() + height, z,
+                        1, 0, 0, 0, 0.01
+                );
             } else {
                 // Generic particles for other types
-                world.sendParticles(ParticleTypes.WITCH,
-                        x, player.getY() + height, z, 1, 0, 0, 0, 0.01);
+                world.sendParticles(
+                        net.minecraft.particles.ParticleTypes.WITCH,
+                        x, player.getY() + height, z,
+                        1, 0, 0, 0, 0.01
+                );
             }
 
             // Add some occasional enchantment particles for magical effect
             if (i % 10 == 0) {
-                world.sendParticles(ParticleTypes.ENCHANT,
+                world.sendParticles(
+                        net.minecraft.particles.ParticleTypes.ENCHANT,
                         player.getX() + RANDOM.nextDouble() * 2 - 1,
                         player.getY() + 1 + RANDOM.nextDouble(),
                         player.getZ() + RANDOM.nextDouble() * 2 - 1,
-                        1, 0, 0, 0, 0.05);
+                        1, 0, 0, 0, 0.05
+                );
             }
         }
     }
@@ -259,37 +300,19 @@ public class TypeAttractorItem extends Item {
      * Try to spawn a Pokémon of the specified type immediately
      */
     private void trySpawnTypePokemon(ServerPlayerEntity player, String type) {
-        MinecraftServer server = player.getServer();
-        if (server == null) return;
+        if (player.getServer() == null) return;
 
         try {
-            // Get eligible Pokémon for this biome and type
-            Set<String> eligiblePokemon = com.blissy.customConsumables.data.PokemonTypeDataHandler.getInstance()
-                    .getEligiblePokemonForPlayer(player, type);
+            // Try to spawn using command
+            player.getServer().getCommands().performCommand(
+                    player.getServer().createCommandSourceStack().withPermission(4),
+                    "pokespawn " + type.toLowerCase()
+            );
 
-            if (!eligiblePokemon.isEmpty()) {
-                // Pick a random eligible Pokémon
-                String[] pokemonArray = eligiblePokemon.toArray(new String[0]);
-                String pokemon = pokemonArray[RANDOM.nextInt(pokemonArray.length)];
-
-                // Try to spawn it
-                server.getCommands().performCommand(
-                        server.createCommandSourceStack().withPermission(4),
-                        "pokespawn " + pokemon
-                );
-
-                // Log the spawn attempt
-                CustomConsumables.getLogger().info(
-                        "Attempted to spawn {} for player {} using Type Attractor",
-                        pokemon, player.getName().getString()
-                );
-            } else {
-                // Just try to spawn any Pokémon of this type
-                server.getCommands().performCommand(
-                        server.createCommandSourceStack().withPermission(4),
-                        "pokespawn " + type.toLowerCase()
-                );
-            }
+            CustomConsumables.getLogger().info(
+                    "Attempted to spawn {} type for player {}",
+                    type, player.getName().getString()
+            );
         } catch (Exception e) {
             // Just log at debug level, this is a nice-to-have feature
             CustomConsumables.getLogger().debug(
@@ -308,7 +331,7 @@ public class TypeAttractorItem extends Item {
         tooltip.add(new StringTextComponent(typeColor + typeName + " Type Attractor"));
         tooltip.add(new StringTextComponent(TextFormatting.YELLOW + "Increases " + typeColor + typeName +
                 TextFormatting.YELLOW + " type Pokémon spawns by " + TextFormatting.GREEN +
-                (int)(TYPE_MULTIPLIER * 100) + "%" + TextFormatting.YELLOW + " for 2 minutes"));
+                (int)(TYPE_MULTIPLIER * 100) + "%" + TextFormatting.YELLOW + " for 3 minutes"));
         tooltip.add(new StringTextComponent(TextFormatting.GRAY + "Analyzes local biome for compatible spawns"));
         tooltip.add(new StringTextComponent(TextFormatting.ITALIC + "Consume to activate"));
     }
@@ -338,7 +361,7 @@ public class TypeAttractorItem extends Item {
      */
     public ItemStack setType(ItemStack stack, String type) {
         CompoundNBT nbt = stack.getOrCreateTag();
-        nbt.putString("type", type.toLowerCase());
+        nbt.putString("type", validateType(type));
         return stack;
     }
 
@@ -429,5 +452,22 @@ public class TypeAttractorItem extends Item {
         ItemStack stack = new ItemStack(ItemInit.TYPE_ATTRACTOR.get(), count);
         TypeAttractorItem item = (TypeAttractorItem) stack.getItem();
         return item.setType(stack, type);
+    }
+
+    /**
+     * Checks if the given type is valid
+     *
+     * @param type The type to check
+     * @return true if it's a valid Pokémon type
+     */
+    public static boolean isValidType(String type) {
+        return VALID_TYPES.contains(type.toLowerCase());
+    }
+
+    /**
+     * Gets the list of valid Pokémon types
+     */
+    public static List<String> getValidTypes() {
+        return VALID_TYPES;
     }
 }

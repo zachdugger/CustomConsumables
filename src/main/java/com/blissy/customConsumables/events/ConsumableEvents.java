@@ -86,17 +86,6 @@ public class ConsumableEvents {
             );
         }
 
-        // Check for hidden ability boost
-        int haTime = PlayerEffectManager.getRemainingHiddenAbilityBoostTime(player);
-        if (haTime > 0) {
-            hasAnyEffect = true;
-            player.sendMessage(
-                    new StringTextComponent(TextFormatting.LIGHT_PURPLE + "[Debug] Hidden Ability boost active: " +
-                            formatTime(haTime) + " remaining"),
-                    player.getUUID()
-            );
-        }
-
         // Check for type boost
         int typeTime = PlayerEffectManager.getRemainingTypeBoostTime(player);
         String boostType = PlayerEffectManager.getTypeBoost(player);
