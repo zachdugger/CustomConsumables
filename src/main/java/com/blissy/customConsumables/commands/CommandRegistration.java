@@ -83,7 +83,7 @@ public class CommandRegistration {
                                             return giveItem(player, shinyEgg, context.getSource());
                                         }))))
                 // XXL Exp Candy command
-                .then(Commands.literal("expcandy")
+                .then(Commands.literal("xxlcandy")
                         .executes(context -> {
                             ItemStack expCandy = new ItemStack(ItemInit.XXL_EXP_CANDY.get());
                             return giveItem(context.getSource(), expCandy);
