@@ -134,12 +134,36 @@ public class XXLExpCandyItem extends Item {
                         pokemon.getStatus().type.toString()
                 );
 
-                // Simply add the experience points
-                pokemon.setExperience(currentExp + EXP_AMOUNT);
+                // Instead of directly setting experience, we'll use the level-up system
+                // This will trigger proper Pixelmon level-up mechanics
+                int targetLevel = oldLevel;
+                int remainingExp = EXP_AMOUNT;
+
+                // Apply experience levels one at a time until we've used all the experience
+                // or reached max level
+                while (remainingExp > 0 && targetLevel < 100) {
+                    // Get current XP needed to level up
+                    int expToNextLevel = pokemon.getExperienceToLevelUp();
+
+                    // If we have enough exp to level up
+                    if (remainingExp >= expToNextLevel) {
+                        // Level up the Pokémon
+                        targetLevel++;
+                        remainingExp -= expToNextLevel;
+
+                        // Set the new level - this will properly trigger Pixelmon's level system
+                        pokemon.setLevel(targetLevel);
+                    } else {
+                        // Not enough for full level, just add the remaining exp
+                        int newExp = pokemon.getExperience() + remainingExp;
+                        pokemon.setExperience(newExp);
+                        remainingExp = 0;
+                    }
+                }
 
                 // Get the new level and experience
-                int newExp = pokemon.getExperience();
                 int newLevel = pokemon.getPokemonLevel();
+                int newExp = pokemon.getExperience();
 
                 // Log detailed data about the experience and level change
                 CustomConsumables.getLogger().info(
@@ -154,7 +178,11 @@ public class XXLExpCandyItem extends Item {
 
                 // Try to trigger evolution check if level changed
                 if (newLevel > oldLevel) {
+                    // Trigger the evolution check with the new level
                     pixelmon.testLevelEvolution(newLevel);
+
+                    // Make sure to call evolution tryEvolution to handle any potential evolutions
+                    pokemon.tryEvolution();
                 }
 
                 // Play sound
