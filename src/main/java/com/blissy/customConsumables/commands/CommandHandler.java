@@ -66,15 +66,15 @@ public class CommandHandler {
 
         switch (itemName.toLowerCase()) {
             case "legendary_egg":
-                stack = new ItemStack(ItemInit.LEGENDARY_EGG.get());
+                stack = new ItemStack(ItemInit.LEGENDARY_EGG);
                 source.sendSuccess(new StringTextComponent(TextFormatting.GREEN + "Gave Legendary Egg to " + player.getName().getString()), true);
                 break;
             case "shiny_egg":
-                stack = new ItemStack(ItemInit.SHINY_EGG.get());
+                stack = new ItemStack(ItemInit.SHINY_EGG);
                 source.sendSuccess(new StringTextComponent(TextFormatting.GREEN + "Gave Shiny Egg to " + player.getName().getString()), true);
                 break;
             case "xxl_exp_candy":
-                stack = new ItemStack(ItemInit.XXL_EXP_CANDY.get());
+                stack = new ItemStack(ItemInit.XXL_EXP_CANDY);
                 source.sendSuccess(new StringTextComponent(TextFormatting.GREEN + "Gave XXL Exp. Candy to " + player.getName().getString()), true);
                 break;
             default:
@@ -106,11 +106,11 @@ public class CommandHandler {
         source.sendSuccess(new StringTextComponent(TextFormatting.YELLOW + "Pixelmon Integration: " +
                 (pixelmonLoaded ? TextFormatting.GREEN + "Enabled" : TextFormatting.RED + "Disabled")), false);
 
-        // List available items
-        source.sendSuccess(new StringTextComponent(TextFormatting.AQUA + "Available items:"), false);
-        source.sendSuccess(new StringTextComponent(" - " + TextFormatting.GOLD + "Legendary Egg"), false);
-        source.sendSuccess(new StringTextComponent(" - " + TextFormatting.AQUA + "Shiny Egg"), false);
-        source.sendSuccess(new StringTextComponent(" - " + TextFormatting.LIGHT_PURPLE + "XXL Exp. Candy"), false);
+        // Print which Pixelmon items we're overriding
+        source.sendSuccess(new StringTextComponent(TextFormatting.AQUA + "Pixelmon items overridden:"), false);
+        source.sendSuccess(new StringTextComponent(" - " + TextFormatting.GOLD + "Sweet Curry → Legendary Egg"), false);
+        source.sendSuccess(new StringTextComponent(" - " + TextFormatting.AQUA + "Spicy Curry → Shiny Egg"), false);
+        source.sendSuccess(new StringTextComponent(" - " + TextFormatting.LIGHT_PURPLE + "Sour Curry → XXL Exp. Candy"), false);
 
         return 1;
     }

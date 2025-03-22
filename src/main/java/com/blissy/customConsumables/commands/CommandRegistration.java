@@ -35,76 +35,76 @@ public class CommandRegistration {
                 // Legendary Egg command
                 .then(Commands.literal("legendary")
                         .executes(context -> {
-                            ItemStack legendaryEgg = new ItemStack(ItemInit.LEGENDARY_EGG.get());
+                            ItemStack legendaryEgg = new ItemStack(ItemInit.LEGENDARY_EGG);
                             return giveItem(context.getSource(), legendaryEgg);
                         })
                         .then(Commands.argument("count", IntegerArgumentType.integer(1, 64))
                                 .executes(context -> {
                                     int count = IntegerArgumentType.getInteger(context, "count");
-                                    ItemStack legendaryEgg = new ItemStack(ItemInit.LEGENDARY_EGG.get(), count);
+                                    ItemStack legendaryEgg = new ItemStack(ItemInit.LEGENDARY_EGG, count);
                                     return giveItem(context.getSource(), legendaryEgg);
                                 }))
                         .then(Commands.argument("player", EntityArgument.player())
                                 .executes(context -> {
                                     ServerPlayerEntity player = EntityArgument.getPlayer(context, "player");
-                                    ItemStack legendaryEgg = new ItemStack(ItemInit.LEGENDARY_EGG.get());
+                                    ItemStack legendaryEgg = new ItemStack(ItemInit.LEGENDARY_EGG);
                                     return giveItem(player, legendaryEgg, context.getSource());
                                 })
                                 .then(Commands.argument("count", IntegerArgumentType.integer(1, 64))
                                         .executes(context -> {
                                             int count = IntegerArgumentType.getInteger(context, "count");
                                             ServerPlayerEntity player = EntityArgument.getPlayer(context, "player");
-                                            ItemStack legendaryEgg = new ItemStack(ItemInit.LEGENDARY_EGG.get(), count);
+                                            ItemStack legendaryEgg = new ItemStack(ItemInit.LEGENDARY_EGG, count);
                                             return giveItem(player, legendaryEgg, context.getSource());
                                         }))))
                 // Shiny Egg command
                 .then(Commands.literal("shiny")
                         .executes(context -> {
-                            ItemStack shinyEgg = new ItemStack(ItemInit.SHINY_EGG.get());
+                            ItemStack shinyEgg = new ItemStack(ItemInit.SHINY_EGG);
                             return giveItem(context.getSource(), shinyEgg);
                         })
                         .then(Commands.argument("count", IntegerArgumentType.integer(1, 64))
                                 .executes(context -> {
                                     int count = IntegerArgumentType.getInteger(context, "count");
-                                    ItemStack shinyEgg = new ItemStack(ItemInit.SHINY_EGG.get(), count);
+                                    ItemStack shinyEgg = new ItemStack(ItemInit.SHINY_EGG, count);
                                     return giveItem(context.getSource(), shinyEgg);
                                 }))
                         .then(Commands.argument("player", EntityArgument.player())
                                 .executes(context -> {
                                     ServerPlayerEntity player = EntityArgument.getPlayer(context, "player");
-                                    ItemStack shinyEgg = new ItemStack(ItemInit.SHINY_EGG.get());
+                                    ItemStack shinyEgg = new ItemStack(ItemInit.SHINY_EGG);
                                     return giveItem(player, shinyEgg, context.getSource());
                                 })
                                 .then(Commands.argument("count", IntegerArgumentType.integer(1, 64))
                                         .executes(context -> {
                                             int count = IntegerArgumentType.getInteger(context, "count");
                                             ServerPlayerEntity player = EntityArgument.getPlayer(context, "player");
-                                            ItemStack shinyEgg = new ItemStack(ItemInit.SHINY_EGG.get(), count);
+                                            ItemStack shinyEgg = new ItemStack(ItemInit.SHINY_EGG, count);
                                             return giveItem(player, shinyEgg, context.getSource());
                                         }))))
                 // XXL Exp Candy command
                 .then(Commands.literal("xxlcandy")
                         .executes(context -> {
-                            ItemStack expCandy = new ItemStack(ItemInit.XXL_EXP_CANDY.get());
+                            ItemStack expCandy = new ItemStack(ItemInit.XXL_EXP_CANDY);
                             return giveItem(context.getSource(), expCandy);
                         })
                         .then(Commands.argument("count", IntegerArgumentType.integer(1, 64))
                                 .executes(context -> {
                                     int count = IntegerArgumentType.getInteger(context, "count");
-                                    ItemStack expCandy = new ItemStack(ItemInit.XXL_EXP_CANDY.get(), count);
+                                    ItemStack expCandy = new ItemStack(ItemInit.XXL_EXP_CANDY, count);
                                     return giveItem(context.getSource(), expCandy);
                                 }))
                         .then(Commands.argument("player", EntityArgument.player())
                                 .executes(context -> {
                                     ServerPlayerEntity player = EntityArgument.getPlayer(context, "player");
-                                    ItemStack expCandy = new ItemStack(ItemInit.XXL_EXP_CANDY.get());
+                                    ItemStack expCandy = new ItemStack(ItemInit.XXL_EXP_CANDY);
                                     return giveItem(player, expCandy, context.getSource());
                                 })
                                 .then(Commands.argument("count", IntegerArgumentType.integer(1, 64))
                                         .executes(context -> {
                                             int count = IntegerArgumentType.getInteger(context, "count");
                                             ServerPlayerEntity player = EntityArgument.getPlayer(context, "player");
-                                            ItemStack expCandy = new ItemStack(ItemInit.XXL_EXP_CANDY.get(), count);
+                                            ItemStack expCandy = new ItemStack(ItemInit.XXL_EXP_CANDY, count);
                                             return giveItem(player, expCandy, context.getSource());
                                         }))))
                 // Debug command
@@ -124,16 +124,16 @@ public class CommandRegistration {
                             }
 
                             ctx.getSource().sendSuccess(new StringTextComponent(TextFormatting.AQUA +
-                                    "Available items:"), false);
+                                    "Overridden Pixelmon items:"), false);
 
                             ctx.getSource().sendSuccess(new StringTextComponent(" - " + TextFormatting.GOLD +
-                                    "Legendary Egg" + TextFormatting.GRAY + " (/customitem legendary)"), false);
+                                    "Sweet Curry → Legendary Egg" + TextFormatting.GRAY + " (/customitem legendary)"), false);
 
                             ctx.getSource().sendSuccess(new StringTextComponent(" - " + TextFormatting.AQUA +
-                                    "Shiny Egg" + TextFormatting.GRAY + " (/customitem shiny)"), false);
+                                    "Spicy Curry → Shiny Egg" + TextFormatting.GRAY + " (/customitem shiny)"), false);
 
                             ctx.getSource().sendSuccess(new StringTextComponent(" - " + TextFormatting.LIGHT_PURPLE +
-                                    "XXL Exp. Candy" + TextFormatting.GRAY + " (/customitem expcandy)"), false);
+                                    "Sour Curry → XXL Exp. Candy" + TextFormatting.GRAY + " (/customitem xxlcandy)"), false);
 
                             return 1;
                         }));

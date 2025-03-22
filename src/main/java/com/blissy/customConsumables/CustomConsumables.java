@@ -26,19 +26,18 @@ public class CustomConsumables {
     public static final ItemGroup CUSTOMCONSUMABLES_GROUP = new ItemGroup("customconsumables") {
         @Override
         public ItemStack makeIcon() {
-            // Return the legendary egg as the tab icon
-            return new ItemStack(ItemInit.LEGENDARY_EGG.get());
+            // We'll set the icon when items are initialized
+            return new ItemStack(ItemInit.LEGENDARY_EGG);
         }
     };
 
     public CustomConsumables() {
-        LOGGER.info("Initializing CustomConsumables mod");
+        LOGGER.info("Initializing CustomConsumables mod (Server-side)");
 
         // Get the mod event bus
         IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
 
-        // Register our items with the game
-        ItemInit.ITEMS.register(modEventBus);
+        // Note: no item registration here anymore, it's done via the RegistryEvent in ItemInit
 
         // Register setup method for modloading
         modEventBus.addListener(this::setup);
