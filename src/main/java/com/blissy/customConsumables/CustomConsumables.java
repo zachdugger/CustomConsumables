@@ -26,8 +26,8 @@ public class CustomConsumables {
     public static final ItemGroup CUSTOMCONSUMABLES_GROUP = new ItemGroup("customconsumables") {
         @Override
         public ItemStack makeIcon() {
-            // Return the legendary lure as the tab icon
-            return new ItemStack(ItemInit.LEGENDARY_LURE.get());
+            // Return the legendary egg as the tab icon
+            return new ItemStack(ItemInit.LEGENDARY_EGG.get());
         }
     };
 

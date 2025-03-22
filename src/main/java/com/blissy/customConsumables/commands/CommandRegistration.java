@@ -35,52 +35,77 @@ public class CommandRegistration {
                 // Legendary Egg command
                 .then(Commands.literal("legendary")
                         .executes(context -> {
-                            ItemStack legendaryLure = new ItemStack(ItemInit.LEGENDARY_LURE.get());
-                            return giveItem(context.getSource(), legendaryLure);
+                            ItemStack legendaryEgg = new ItemStack(ItemInit.LEGENDARY_EGG.get());
+                            return giveItem(context.getSource(), legendaryEgg);
                         })
                         .then(Commands.argument("count", IntegerArgumentType.integer(1, 64))
                                 .executes(context -> {
                                     int count = IntegerArgumentType.getInteger(context, "count");
-                                    ItemStack legendaryLure = new ItemStack(ItemInit.LEGENDARY_LURE.get(), count);
-                                    return giveItem(context.getSource(), legendaryLure);
+                                    ItemStack legendaryEgg = new ItemStack(ItemInit.LEGENDARY_EGG.get(), count);
+                                    return giveItem(context.getSource(), legendaryEgg);
                                 }))
                         .then(Commands.argument("player", EntityArgument.player())
                                 .executes(context -> {
                                     ServerPlayerEntity player = EntityArgument.getPlayer(context, "player");
-                                    ItemStack legendaryLure = new ItemStack(ItemInit.LEGENDARY_LURE.get());
-                                    return giveItem(player, legendaryLure, context.getSource());
+                                    ItemStack legendaryEgg = new ItemStack(ItemInit.LEGENDARY_EGG.get());
+                                    return giveItem(player, legendaryEgg, context.getSource());
                                 })
                                 .then(Commands.argument("count", IntegerArgumentType.integer(1, 64))
                                         .executes(context -> {
                                             int count = IntegerArgumentType.getInteger(context, "count");
                                             ServerPlayerEntity player = EntityArgument.getPlayer(context, "player");
-                                            ItemStack legendaryLure = new ItemStack(ItemInit.LEGENDARY_LURE.get(), count);
-                                            return giveItem(player, legendaryLure, context.getSource());
+                                            ItemStack legendaryEgg = new ItemStack(ItemInit.LEGENDARY_EGG.get(), count);
+                                            return giveItem(player, legendaryEgg, context.getSource());
                                         }))))
                 // Shiny Egg command
                 .then(Commands.literal("shiny")
                         .executes(context -> {
-                            ItemStack shinyCharm = new ItemStack(ItemInit.SHINY_CHARM.get());
-                            return giveItem(context.getSource(), shinyCharm);
+                            ItemStack shinyEgg = new ItemStack(ItemInit.SHINY_EGG.get());
+                            return giveItem(context.getSource(), shinyEgg);
                         })
                         .then(Commands.argument("count", IntegerArgumentType.integer(1, 64))
                                 .executes(context -> {
                                     int count = IntegerArgumentType.getInteger(context, "count");
-                                    ItemStack shinyCharm = new ItemStack(ItemInit.SHINY_CHARM.get(), count);
-                                    return giveItem(context.getSource(), shinyCharm);
+                                    ItemStack shinyEgg = new ItemStack(ItemInit.SHINY_EGG.get(), count);
+                                    return giveItem(context.getSource(), shinyEgg);
                                 }))
                         .then(Commands.argument("player", EntityArgument.player())
                                 .executes(context -> {
                                     ServerPlayerEntity player = EntityArgument.getPlayer(context, "player");
-                                    ItemStack shinyCharm = new ItemStack(ItemInit.SHINY_CHARM.get());
-                                    return giveItem(player, shinyCharm, context.getSource());
+                                    ItemStack shinyEgg = new ItemStack(ItemInit.SHINY_EGG.get());
+                                    return giveItem(player, shinyEgg, context.getSource());
                                 })
                                 .then(Commands.argument("count", IntegerArgumentType.integer(1, 64))
                                         .executes(context -> {
                                             int count = IntegerArgumentType.getInteger(context, "count");
                                             ServerPlayerEntity player = EntityArgument.getPlayer(context, "player");
-                                            ItemStack shinyCharm = new ItemStack(ItemInit.SHINY_CHARM.get(), count);
-                                            return giveItem(player, shinyCharm, context.getSource());
+                                            ItemStack shinyEgg = new ItemStack(ItemInit.SHINY_EGG.get(), count);
+                                            return giveItem(player, shinyEgg, context.getSource());
+                                        }))))
+                // XXL Exp Candy command
+                .then(Commands.literal("expcandy")
+                        .executes(context -> {
+                            ItemStack expCandy = new ItemStack(ItemInit.XXL_EXP_CANDY.get());
+                            return giveItem(context.getSource(), expCandy);
+                        })
+                        .then(Commands.argument("count", IntegerArgumentType.integer(1, 64))
+                                .executes(context -> {
+                                    int count = IntegerArgumentType.getInteger(context, "count");
+                                    ItemStack expCandy = new ItemStack(ItemInit.XXL_EXP_CANDY.get(), count);
+                                    return giveItem(context.getSource(), expCandy);
+                                }))
+                        .then(Commands.argument("player", EntityArgument.player())
+                                .executes(context -> {
+                                    ServerPlayerEntity player = EntityArgument.getPlayer(context, "player");
+                                    ItemStack expCandy = new ItemStack(ItemInit.XXL_EXP_CANDY.get());
+                                    return giveItem(player, expCandy, context.getSource());
+                                })
+                                .then(Commands.argument("count", IntegerArgumentType.integer(1, 64))
+                                        .executes(context -> {
+                                            int count = IntegerArgumentType.getInteger(context, "count");
+                                            ServerPlayerEntity player = EntityArgument.getPlayer(context, "player");
+                                            ItemStack expCandy = new ItemStack(ItemInit.XXL_EXP_CANDY.get(), count);
+                                            return giveItem(player, expCandy, context.getSource());
                                         }))))
                 // Debug command
                 .then(Commands.literal("debug")
@@ -106,6 +131,9 @@ public class CommandRegistration {
 
                             ctx.getSource().sendSuccess(new StringTextComponent(" - " + TextFormatting.AQUA +
                                     "Shiny Egg" + TextFormatting.GRAY + " (/customitem shiny)"), false);
+
+                            ctx.getSource().sendSuccess(new StringTextComponent(" - " + TextFormatting.LIGHT_PURPLE +
+                                    "XXL Exp. Candy" + TextFormatting.GRAY + " (/customitem expcandy)"), false);
 
                             return 1;
                         }));

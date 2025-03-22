@@ -27,16 +27,9 @@ import java.util.Arrays;
 @Mod.EventBusSubscriber(modid = CustomConsumables.MOD_ID)
 public class CommandHandler {
 
-    private static final SuggestionProvider<CommandSource> TYPE_SUGGESTIONS = (context, builder) -> {
-        return ISuggestionProvider.suggest(
-                TypeHelper.getValidTypes().stream()
-                        .map(String::toLowerCase),
-                builder);
-    };
-
     private static final SuggestionProvider<CommandSource> ITEM_SUGGESTIONS = (context, builder) -> {
         return ISuggestionProvider.suggest(
-                Arrays.asList("legendary_lure", "shiny_charm"),
+                Arrays.asList("legendary_egg", "shiny_egg", "xxl_exp_candy"),
                 builder);
     };
 
@@ -54,19 +47,11 @@ public class CommandHandler {
                         .then(Commands.literal("give")
                                 .then(Commands.argument("item", StringArgumentType.word())
                                         .suggests(ITEM_SUGGESTIONS)
-                                        .executes(context -> giveItem(context, StringArgumentType.getString(context, "item"), null))
-                                        .then(Commands.argument("type", StringArgumentType.word())
-                                                .suggests(TYPE_SUGGESTIONS)
-                                                .executes(context -> giveItem(context, StringArgumentType.getString(context, "item"),
-                                                        StringArgumentType.getString(context, "type")))
-                                        )
+                                        .executes(context -> giveItem(context, StringArgumentType.getString(context, "item")))
                                 )
                         )
                         .then(Commands.literal("debug")
-                                .executes(CommandHandler::debugInfo)
-                        )
-                        .then(Commands.literal("reload")
-                                .executes(CommandHandler::reloadData)
+                                .executes(context -> debugInfo(context))
                         )
         );
     }
@@ -74,19 +59,23 @@ public class CommandHandler {
     /**
      * Gives an item to the player
      */
-    private static int giveItem(CommandContext<CommandSource> context, String itemName, String type) throws CommandSyntaxException {
+    private static int giveItem(CommandContext<CommandSource> context, String itemName) throws CommandSyntaxException {
         CommandSource source = context.getSource();
         ServerPlayerEntity player = source.getPlayerOrException();
         ItemStack stack;
 
         switch (itemName.toLowerCase()) {
-            case "legendary_lure":
-                stack = new ItemStack(ItemInit.LEGENDARY_LURE.get());
-                source.sendSuccess(new StringTextComponent(TextFormatting.GREEN + "Gave Legendary Lure to " + player.getName().getString()), true);
+            case "legendary_egg":
+                stack = new ItemStack(ItemInit.LEGENDARY_EGG.get());
+                source.sendSuccess(new StringTextComponent(TextFormatting.GREEN + "Gave Legendary Egg to " + player.getName().getString()), true);
                 break;
-            case "shiny_charm":
-                stack = new ItemStack(ItemInit.SHINY_CHARM.get());
-                source.sendSuccess(new StringTextComponent(TextFormatting.GREEN + "Gave Shiny Charm to " + player.getName().getString()), true);
+            case "shiny_egg":
+                stack = new ItemStack(ItemInit.SHINY_EGG.get());
+                source.sendSuccess(new StringTextComponent(TextFormatting.GREEN + "Gave Shiny Egg to " + player.getName().getString()), true);
+                break;
+            case "xxl_exp_candy":
+                stack = new ItemStack(ItemInit.XXL_EXP_CANDY.get());
+                source.sendSuccess(new StringTextComponent(TextFormatting.GREEN + "Gave XXL Exp. Candy to " + player.getName().getString()), true);
                 break;
             default:
                 source.sendFailure(new StringTextComponent(TextFormatting.RED + "Unknown item: " + itemName));
@@ -105,7 +94,7 @@ public class CommandHandler {
     /**
      * Prints debug information
      */
-    private static void debugInfo(CommandContext<CommandSource> context) {
+    private static int debugInfo(CommandContext<CommandSource> context) {
         CommandSource source = context.getSource();
 
         // Print mod info
@@ -117,24 +106,12 @@ public class CommandHandler {
         source.sendSuccess(new StringTextComponent(TextFormatting.YELLOW + "Pixelmon Integration: " +
                 (pixelmonLoaded ? TextFormatting.GREEN + "Enabled" : TextFormatting.RED + "Disabled")), false);
 
+        // List available items
+        source.sendSuccess(new StringTextComponent(TextFormatting.AQUA + "Available items:"), false);
+        source.sendSuccess(new StringTextComponent(" - " + TextFormatting.GOLD + "Legendary Egg"), false);
+        source.sendSuccess(new StringTextComponent(" - " + TextFormatting.AQUA + "Shiny Egg"), false);
+        source.sendSuccess(new StringTextComponent(" - " + TextFormatting.LIGHT_PURPLE + "XXL Exp. Candy"), false);
 
-    };
-
-    /**
-    ; * Reloads data files
-     */
-    private static int reloadData(CommandContext<CommandSource> context) {
-        CommandSource source = context.getSource();
-
-        try {
-            // Reload type data
-            TypeHelper.reloadTypeData();
-            source.sendSuccess(new StringTextComponent(TextFormatting.GREEN + "Successfully reloaded CustomConsumables data!"), true);
-            return 1;
-        } catch (Exception e) {
-            CustomConsumables.getLogger().error("Error reloading data: {}", e.getMessage(), e);
-            source.sendFailure(new StringTextComponent(TextFormatting.RED + "Error reloading data: " + e.getMessage()));
-            return 0;
-        }
+        return 1;
     }
 }
