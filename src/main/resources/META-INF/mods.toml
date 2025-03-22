@@ -9,12 +9,12 @@ displayName="Custom Pixelmon Consumables"
 logoFile="examplemod.png"
 authors="Blissy"
 description='''
-Adds custom consumable items to Pixelmon that affect Pokémon spawning.
+Adds custom consumable items to Pixelmon.
 
 Features include:
-- Legendary Lure: 1% chance to spawn a legendary Pokémon when used
-- Shiny Charm: 50% chance to spawn a shiny Pokémon when used
-- Type Attractor: Forces only Pokémon of a specific type to spawn around you
+- Legendary Egg: 0.5% chance to spawn a legendary Pokémon when used
+- Shiny Egg: 35% chance to spawn a shiny Pokémon when used
+- XXL Exp. Candy: Gives 100,000 experience points to a selected Pokémon
 '''
 
 [[dependencies.customconsumables]]

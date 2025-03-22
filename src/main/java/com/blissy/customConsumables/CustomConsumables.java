@@ -26,8 +26,8 @@ public class CustomConsumables {
     public static final ItemGroup CUSTOMCONSUMABLES_GROUP = new ItemGroup("customconsumables") {
         @Override
         public ItemStack makeIcon() {
-            // Return the first registered item as the tab icon
-            return new ItemStack(ItemInit.TYPE_ATTRACTOR.get());
+            // Return the legendary lure as the tab icon
+            return new ItemStack(ItemInit.LEGENDARY_LURE.get());
         }
     };
 
@@ -58,7 +58,6 @@ public class CustomConsumables {
 
         if (pixelmonLoaded) {
             LOGGER.info("CustomConsumables is integrated with Pixelmon");
-            LOGGER.info("Type Attractor now boosts spawn rates of specific types by 1000%");
         } else {
             LOGGER.warn("Pixelmon not detected! CustomConsumables requires Pixelmon to function properly.");
         }
@@ -94,11 +93,6 @@ public class CustomConsumables {
             if (event.getPlayer().hasPermissions(2)) {
                 event.getPlayer().sendMessage(
                         new StringTextComponent(TextFormatting.GREEN + "CustomConsumables mod is active!"),
-                        event.getPlayer().getUUID()
-                );
-
-                event.getPlayer().sendMessage(
-                        new StringTextComponent(TextFormatting.YELLOW + "Use /customitem debug to verify integration"),
                         event.getPlayer().getUUID()
                 );
 

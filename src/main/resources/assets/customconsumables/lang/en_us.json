@@ -1,7 +1,8 @@
 {
   "itemGroup.customconsumables": "Custom Consumables",
 
-  "item.customconsumables.legendary_lure": "Legendary Lure",
-  "item.customconsumables.shiny_charm": "Shiny Charm",
-  "item.customconsumables.type_attractor": "Type Attractor"
+  "item.customconsumables.legendary_egg": "Legendary Egg",
+  "item.customconsumables.shiny_egg": "Shiny Egg",
+  "item.customconsumables.xxl_exp_candy": "XXL Exp. Candy",
+  "item.customconsumables.xxl_exp_candy": "Caramelo de Experiencia XXL"
 }
