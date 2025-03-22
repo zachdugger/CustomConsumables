@@ -5,8 +5,7 @@ This mod adds several consumable items that enhance various aspects of Pokémon 
 
 Legendary Lure: 1% chance to spawn a legendary in the server
 Shiny Charm: X percentage to instantly spawn a shiny on your player
-Type Attractor: Increases spawns of a specific type for 2 minutes
-
+XXL Candy: Right click to give a pokemon 100,000 experience.
 Requirements
 
 Minecraft 1.16.5
