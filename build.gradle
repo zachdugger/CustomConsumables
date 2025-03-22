@@ -23,9 +23,13 @@ version = '1.0'
 group = 'com.blissy.customconsumables'
 archivesBaseName = 'customconsumables'
 
+// Set Java compatibility to Java 11
 java {
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(11)
+    }
 }
 
 minecraft {
@@ -36,6 +40,7 @@ minecraft {
             workingDirectory project.file('run')
             property 'forge.logging.markers', 'REGISTRIES'
             property 'forge.logging.console.level', 'debug'
+            jvmArgs '-Xmx3G', '--add-exports=java.base/sun.security.util=ALL-UNNAMED', '--add-opens=java.base/java.util.jar=ALL-UNNAMED'
             mods {
                 customconsumables {
                     source sourceSets.main
@@ -47,6 +52,7 @@ minecraft {
             workingDirectory project.file('run')
             property 'forge.logging.markers', 'REGISTRIES'
             property 'forge.logging.console.level', 'debug'
+            jvmArgs '-Xmx3G', '--add-exports=java.base/sun.security.util=ALL-UNNAMED', '--add-opens=java.base/java.util.jar=ALL-UNNAMED'
             mods {
                 customconsumables {
                     source sourceSets.main
@@ -68,11 +74,11 @@ repositories {
 }
 
 dependencies {
-    // Minecraft Forge
-    minecraft 'net.minecraftforge:forge:1.16.5-36.2.4'
+    // Updated Minecraft Forge version to match server
+    minecraft 'net.minecraftforge:forge:1.16.5-36.2.42'
 
-    // Local Pixelmon JAR
-    compileOnly name: 'Pixelmon-1.16.5-9.1.0-universal'
+    // Pixelmon dependency - make sure this exact JAR exists in your libs folder
+    compileOnly name: 'Pixelmon-1.16.5-9.1.13-universal'
 }
 
 // Jar configuration
@@ -85,7 +91,9 @@ jar {
                 "Implementation-Title": project.name,
                 "Implementation-Version": "${version}",
                 "Implementation-Vendor": "Blissy",
-                "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
+                "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ"),
+                "Build-Jdk": "${System.properties['java.version']}",
+                "Created-By": "Java 11"
         ])
     }
 }
@@ -104,7 +112,21 @@ publishing {
     }
 }
 
-// Ensure UTF-8 encoding
+// Ensure UTF-8 encoding and Java 11 compatibility
 tasks.withType(JavaCompile) {
     options.encoding = 'UTF-8'
+    options.release = 11
 }
+
+// Add this task to explicitly check Java version during build
+task checkJavaVersion {
+    doLast {
+        if (!JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_11)) {
+            throw new GradleException("This build requires Java 11 or higher, but found: ${JavaVersion.current()}")
+        }
+        println "Building with Java version: ${JavaVersion.current()}"
+    }
+}
+
+// Run the check before compilation
+compileJava.dependsOn checkJavaVersion
