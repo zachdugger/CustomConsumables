@@ -1,137 +1,70 @@
-buildscript {
-    repositories {
-        maven {
-            name = 'Forge'
-            url = 'https://files.minecraftforge.net/maven'
-        }
-        maven {
-            name = 'Mojang'
-            url = 'https://libraries.minecraft.net/'
-        }
-        mavenCentral()
-    }
-    dependencies {
-        classpath group: 'net.minecraftforge.gradle', name: 'ForgeGradle', version: '4.1.+', changing: true
-    }
+plugins {
+    id 'java'
+    id 'com.github.johnrengelman.shadow' version '6.1.0'
 }
 
-apply plugin: 'net.minecraftforge.gradle'
-apply plugin: 'eclipse'
-apply plugin: 'maven-publish'
+group = 'com.blissy'
+version = '1.0.0'
+description = 'Extension for TokenManager that adds gem currency'
 
-version = '1.0'
-group = 'com.blissy.customconsumables'
-archivesBaseName = 'customconsumables'
-
-// Set Java compatibility to Java 11
-java {
-    sourceCompatibility = JavaVersion.VERSION_11
-    targetCompatibility = JavaVersion.VERSION_11
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(11)
-    }
-}
-
-minecraft {
-    mappings channel: 'official', version: '1.16.5'
-
-    runs {
-        server {
-            workingDirectory project.file('run')
-            property 'forge.logging.markers', 'REGISTRIES'
-            property 'forge.logging.console.level', 'debug'
-            jvmArgs '-Xmx3G', '--add-exports=java.base/sun.security.util=ALL-UNNAMED', '--add-opens=java.base/java.util.jar=ALL-UNNAMED'
-            mods {
-                customconsumables {
-                    source sourceSets.main
-                }
-            }
-        }
-    }
-}
+sourceCompatibility = 11
+targetCompatibility = 11
 
 repositories {
     mavenCentral()
+
+    // Spigot repository
     maven {
-        name = 'Forge'
-        url = 'https://files.minecraftforge.net/maven'
+        url = 'https://hub.spigotmc.org/nexus/content/repositories/snapshots/'
     }
-    flatDir {
-        dirs 'libs'
-    }
+
+    // For other Bukkit-related dependencies
+    maven { url = 'https://oss.sonatype.org/content/repositories/snapshots' }
+    maven { url = 'https://oss.sonatype.org/content/repositories/central' }
 }
 
 dependencies {
-    // Updated Minecraft Forge version to match server
-    minecraft 'net.minecraftforge:forge:1.16.5-36.2.42'
+    // Reference the PaperMC server JAR for Bukkit/Spigot APIs
+    compileOnly files('libs/PaperMC-1.20.4.jar')
 
-    // Pixelmon dependency - make sure this exact JAR exists in your libs folder
-    compileOnly name: 'Pixelmon-1.16.5-9.1.13-universal'
+    // TokenManager dependency
+    compileOnly files('libs/TokenManager-3.2.8.jar')
 }
 
-// Create a task to check if the Pixelmon JAR exists
-task checkPixelmonJar {
-    doLast {
-        def pixelmonJar = file('libs/Pixelmon-1.16.5-9.1.13-universal.jar')
-        if (!pixelmonJar.exists()) {
-            logger.warn "WARNING: Pixelmon JAR not found at ${pixelmonJar.absolutePath}"
-            logger.warn "You need to add the Pixelmon JAR to the 'libs' folder for compilation to succeed"
-            logger.warn "The mod will still work if Pixelmon is installed on the server when running"
-        } else {
-            logger.lifecycle "Pixelmon JAR found at ${pixelmonJar.absolutePath}"
-        }
+processResources {
+    // Include plugin.yml and config files
+    from('src/main/resources') {
+        include 'plugin.yml'
+        include 'config.yml'
+        include 'gemdata.yml'
+
+        // Replace version
+        expand(
+                version: project.version
+        )
     }
 }
 
-// Run the check before compilation
-compileJava.dependsOn checkPixelmonJar
-
-// Jar configuration
-jar {
-    manifest {
-        attributes([
-                "Specification-Title": "customconsumables",
-                "Specification-Vendor": "Blissy",
-                "Specification-Version": "1",
-                "Implementation-Title": project.name,
-                "Implementation-Version": "${version}",
-                "Implementation-Vendor": "Blissy",
-                "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ"),
-                "Build-Jdk": "${System.properties['java.version']}",
-                "Created-By": "Java 11"
-        ])
-    }
+shadowJar {
+    archiveBaseName.set(project.name)
+    archiveClassifier.set('')
+    archiveVersion.set(project.version.toString())
 }
 
-// Publishing configuration
-publishing {
-    publications {
-        mavenJava(MavenPublication) {
-            artifact jar
-        }
-    }
-    repositories {
-        maven {
-            url "file://${project.projectDir}/mcmodsrepo"
-        }
-    }
+build {
+    dependsOn shadowJar
 }
 
-// Ensure UTF-8 encoding and Java 11 compatibility
+// Force UTF-8 encoding
 tasks.withType(JavaCompile) {
     options.encoding = 'UTF-8'
-    options.release = 11
 }
 
-// Add this task to explicitly check Java version during build
-task checkJavaVersion {
+// Create libs directory if it doesn't exist
+task createLibsDir {
     doLast {
-        if (!JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_11)) {
-            throw new GradleException("This build requires Java 11 or higher, but found: ${JavaVersion.current()}")
-        }
-        println "Building with Java version: ${JavaVersion.current()}"
+        mkdir 'libs'
     }
 }
 
-// Run the check before compilation
-compileJava.dependsOn checkJavaVersion
+compileJava.dependsOn createLibsDir
