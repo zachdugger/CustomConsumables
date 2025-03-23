@@ -1,8 +1,5 @@
 package com.blissy.customConsumables;
 
-import com.blissy.customConsumables.init.ItemInit;
-import net.minecraft.item.ItemGroup;
-import net.minecraft.item.ItemStack;
 import net.minecraft.util.text.StringTextComponent;
 import net.minecraft.util.text.TextFormatting;
 import net.minecraftforge.common.MinecraftForge;
@@ -22,22 +19,11 @@ public class CustomConsumables {
 
     private static final Logger LOGGER = LogManager.getLogger();
 
-    // Create a custom item group (creative tab) for our items
-    public static final ItemGroup CUSTOMCONSUMABLES_GROUP = new ItemGroup("customconsumables") {
-        @Override
-        public ItemStack makeIcon() {
-            // We'll set the icon when items are initialized
-            return new ItemStack(ItemInit.LEGENDARY_POTION);
-        }
-    };
-
     public CustomConsumables() {
         LOGGER.info("Initializing CustomConsumables mod (Server-side)");
 
         // Get the mod event bus
         IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
-
-        // Note: no item registration here anymore, it's done via the RegistryEvent in ItemInit
 
         // Register setup method for modloading
         modEventBus.addListener(this::setup);
@@ -99,6 +85,11 @@ public class CustomConsumables {
                 if (ModList.get().isLoaded("pixelmon")) {
                     event.getPlayer().sendMessage(
                             new StringTextComponent(TextFormatting.GREEN + "Pixelmon integration is enabled"),
+                            event.getPlayer().getUUID()
+                    );
+
+                    event.getPlayer().sendMessage(
+                            new StringTextComponent(TextFormatting.YELLOW + "Use /customitem to access special items"),
                             event.getPlayer().getUUID()
                     );
                 } else {

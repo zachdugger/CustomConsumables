@@ -36,18 +36,6 @@ minecraft {
     mappings channel: 'official', version: '1.16.5'
 
     runs {
-        client {
-            workingDirectory project.file('run')
-            property 'forge.logging.markers', 'REGISTRIES'
-            property 'forge.logging.console.level', 'debug'
-            jvmArgs '-Xmx3G', '--add-exports=java.base/sun.security.util=ALL-UNNAMED', '--add-opens=java.base/java.util.jar=ALL-UNNAMED'
-            mods {
-                customconsumables {
-                    source sourceSets.main
-                }
-            }
-        }
-
         server {
             workingDirectory project.file('run')
             property 'forge.logging.markers', 'REGISTRIES'
@@ -80,6 +68,23 @@ dependencies {
     // Pixelmon dependency - make sure this exact JAR exists in your libs folder
     compileOnly name: 'Pixelmon-1.16.5-9.1.13-universal'
 }
+
+// Create a task to check if the Pixelmon JAR exists
+task checkPixelmonJar {
+    doLast {
+        def pixelmonJar = file('libs/Pixelmon-1.16.5-9.1.13-universal.jar')
+        if (!pixelmonJar.exists()) {
+            logger.warn "WARNING: Pixelmon JAR not found at ${pixelmonJar.absolutePath}"
+            logger.warn "You need to add the Pixelmon JAR to the 'libs' folder for compilation to succeed"
+            logger.warn "The mod will still work if Pixelmon is installed on the server when running"
+        } else {
+            logger.lifecycle "Pixelmon JAR found at ${pixelmonJar.absolutePath}"
+        }
+    }
+}
+
+// Run the check before compilation
+compileJava.dependsOn checkPixelmonJar
 
 // Jar configuration
 jar {
