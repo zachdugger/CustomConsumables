@@ -195,12 +195,31 @@ public class VanillaItemHandler {
                 event.setCanceled(true);
                 break;
             case XXL_EXP_CANDY:
-                // Better message for the XXL Exp Candy
-                player.displayClientMessage(
-                        new StringTextComponent(TextFormatting.LIGHT_PURPLE + "XXL Exp. Candy: " +
-                                TextFormatting.YELLOW + "Right-click directly on a sent-out Pokémon"),
-                        true
-                );
+                // Only show the instruction message if player is not looking at an entity
+                // This prevents the instruction message from showing when successfully using on a Pokémon
+                net.minecraft.util.math.RayTraceResult result = player.pick(20.0D, 0.0F, false);
+                boolean lookingAtEntity = result.getType() == net.minecraft.util.math.RayTraceResult.Type.ENTITY;
+
+                if (!lookingAtEntity) {
+                    // Show instruction message only when not targeting an entity
+                    player.displayClientMessage(
+                            new StringTextComponent(TextFormatting.LIGHT_PURPLE + "XXL Exp. Candy: " +
+                                    TextFormatting.YELLOW + "Right-click directly on a sent-out Pokémon to give it experience!"),
+                            false
+                    );
+
+                    // Play a sound to draw attention to the message
+                    player.level.playSound(
+                            null,
+                            player.getX(),
+                            player.getY(),
+                            player.getZ(),
+                            SoundEvents.UI_BUTTON_CLICK,
+                            SoundCategory.PLAYERS,
+                            0.5F,
+                            1.0F
+                    );
+                }
                 break;
         }
     }
