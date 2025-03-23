@@ -1,7 +1,7 @@
 {
   "itemGroup.customconsumables": "Custom Consumables",
 
-  "item.customconsumables.legendary_egg": "Legendary Egg",
-  "item.customconsumables.shiny_egg": "Shiny Egg",
+  "item.customconsumables.legendary_potion": "Legendary Potion",
+  "item.customconsumables.shiny_potion": "Shiny Potion",
   "item.customconsumables.xxl_exp_candy": "XXL Exp. Candy"
 }

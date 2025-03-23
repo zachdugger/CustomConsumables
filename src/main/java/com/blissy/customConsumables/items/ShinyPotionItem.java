@@ -21,11 +21,11 @@ import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Random;
 
-public class LegendaryEggItem extends Item {
+public class ShinyPotionItem extends Item {
     private static final Random RANDOM = new Random();
-    private static final float LEGENDARY_SPAWN_CHANCE = 0.5f; // 0.5% chance
+    private static final float SHINY_SPAWN_CHANCE = 35.0f; // 35% chance
 
-    public LegendaryEggItem(Item.Properties properties) {
+    public ShinyPotionItem(Item.Properties properties) {
         super(properties);
     }
 
@@ -44,45 +44,64 @@ public class LegendaryEggItem extends Item {
                 return stack;
             }
 
-            // Roll for legendary spawn (1% chance)
+            // Roll for shiny spawn
             float roll = RANDOM.nextFloat() * 100.0f;
-            boolean success = roll <= LEGENDARY_SPAWN_CHANCE;
+            boolean success = roll <= SHINY_SPAWN_CHANCE;
 
             if (success) {
-                // Attempt to spawn a legendary
+                // Attempt to spawn a shiny Pokémon
                 MinecraftServer server = player.getServer();
                 if (server != null) {
-                    // Run the command to spawn a legendary
+                    // Run the command to spawn a random shiny Pokémon near the player
                     server.getCommands().performCommand(
                             player.createCommandSourceStack().withPermission(4), // Admin level permission
-                            "pokespawn legendary"
+                            "pokespawn random shiny"
                     );
 
                     // Notify player of success
                     player.displayClientMessage(
-                            new StringTextComponent(TextFormatting.GOLD + "The Legendary Egg hatched! A legendary Pokémon is spawning!"),
+                            new StringTextComponent(TextFormatting.AQUA + "The Shiny Potion worked! A shiny Pokémon is spawning!"),
                             true
                     );
 
                     // Log the successful spawn
                     CustomConsumables.getLogger().info(
-                            "Player {} used Legendary Egg successfully! Spawning a legendary.",
+                            "Player {} used Shiny Potion successfully! Spawning a shiny Pokémon.",
                             player.getName().getString()
+                    );
+
+                    // Play special sound and particles for dramatic effect
+                    player.getLevel().playSound(
+                            null,
+                            player.getX(),
+                            player.getY(),
+                            player.getZ(),
+                            net.minecraft.util.SoundEvents.EXPERIENCE_ORB_PICKUP,
+                            net.minecraft.util.SoundCategory.PLAYERS,
+                            1.0F,
+                            1.0F
+                    );
+
+                    // Spawn sparkling particles
+                    player.getLevel().sendParticles(
+                            net.minecraft.particles.ParticleTypes.END_ROD,
+                            player.getX(), player.getY() + 1, player.getZ(),
+                            50, 0.5, 0.5, 0.5, 0.1
                     );
                 }
             } else {
                 // Notify player of failure
                 player.displayClientMessage(
-                        new StringTextComponent(TextFormatting.YELLOW + "You used a Legendary Egg, but no legendary appeared this time..."),
+                        new StringTextComponent(TextFormatting.YELLOW + "You drank a Shiny Potion, but no shiny Pokémon appeared this time..."),
                         true
                 );
 
                 // Log the failed attempt
                 CustomConsumables.getLogger().info(
-                        "Player {} used Legendary Egg but failed the roll ({}% vs {}% chance).",
+                        "Player {} used Shiny Potion but failed the roll ({}% vs {}% chance).",
                         player.getName().getString(),
                         String.format("%.2f", roll),
-                        LEGENDARY_SPAWN_CHANCE
+                        SHINY_SPAWN_CHANCE
                 );
             }
 
@@ -97,16 +116,16 @@ public class LegendaryEggItem extends Item {
 
     @Override
     public void appendHoverText(ItemStack stack, @Nullable World worldIn, List<ITextComponent> tooltip, ITooltipFlag flagIn) {
-        tooltip.add(new StringTextComponent(TextFormatting.GOLD + "Legendary Egg"));
+        tooltip.add(new StringTextComponent(TextFormatting.AQUA + "Shiny Potion"));
         tooltip.add(new StringTextComponent(TextFormatting.YELLOW + "Has a " +
-                TextFormatting.GREEN + LEGENDARY_SPAWN_CHANCE + "%" +
-                TextFormatting.YELLOW + " chance to spawn a legendary Pokémon when used"));
-        tooltip.add(new StringTextComponent(TextFormatting.ITALIC + "Use the egg to try your luck!"));
+                TextFormatting.GREEN + SHINY_SPAWN_CHANCE + "%" +
+                TextFormatting.YELLOW + " chance to instantly spawn a shiny Pokémon"));
+        tooltip.add(new StringTextComponent(TextFormatting.ITALIC + "Drink the potion to try your luck!"));
     }
 
     @Override
     public UseAction getUseAnimation(ItemStack stack) {
-        return UseAction.EAT;
+        return UseAction.DRINK;
     }
 
     @Override

@@ -1,22 +1,21 @@
 modLoader="javafml"
 loaderVersion="[36,)"
 license="All rights reserved"
-# Setting this to BOTH allows clients without the mod to connect
-side="BOTH"
+# Setting this to SERVER will make it a server-side only mod
+side="SERVER"
 
 [[mods]]
 modId="customconsumables"
 version="1.0.0"
 displayName="Custom Pixelmon Consumables"
-# Remove the logo reference or create the file
-# logoFile="examplemod.png"
+logoFile="examplemod.png"
 authors="Blissy"
 description='''
 Adds custom consumable items to Pixelmon.
 
 Features include:
-- Legendary Egg: 0.5% chance to spawn a legendary Pokémon when used
-- Shiny Egg: 35% chance to spawn a shiny Pokémon when used
+- Legendary Potion: 0.5% chance to spawn a legendary Pokémon when consumed
+- Shiny Potion: 35% chance to spawn a shiny Pokémon when consumed
 - XXL Exp. Candy: Gives 100,000 experience points to a selected Pokémon
 '''
 
@@ -25,18 +24,18 @@ modId="forge"
 mandatory=true
 versionRange="[36,)"
 ordering="NONE"
-side="BOTH"
+side="SERVER" # Changed from BOTH to SERVER
 
 [[dependencies.customconsumables]]
 modId="minecraft"
 mandatory=true
 versionRange="[1.16.5]"
 ordering="NONE"
-side="BOTH"
+side="SERVER" # Changed from BOTH to SERVER
 
 [[dependencies.customconsumables]]
 modId="pixelmon"
 mandatory=true
 versionRange="[9.1.0,)"
 ordering="AFTER"
-side="BOTH"
+side="SERVER" # Changed from BOTH to SERVER

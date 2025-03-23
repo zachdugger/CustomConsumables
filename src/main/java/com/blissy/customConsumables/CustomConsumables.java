@@ -19,13 +19,25 @@ import org.apache.logging.log4j.Logger;
 @Mod("customconsumables")
 public class CustomConsumables {
     public static final String MOD_ID = "customconsumables";
+
     private static final Logger LOGGER = LogManager.getLogger();
 
+    // Create a custom item group (creative tab) for our items
+    public static final ItemGroup CUSTOMCONSUMABLES_GROUP = new ItemGroup("customconsumables") {
+        @Override
+        public ItemStack makeIcon() {
+            // We'll set the icon when items are initialized
+            return new ItemStack(ItemInit.LEGENDARY_POTION);
+        }
+    };
+
     public CustomConsumables() {
-        LOGGER.info("Initializing CustomConsumables mod");
+        LOGGER.info("Initializing CustomConsumables mod (Server-side)");
 
         // Get the mod event bus
         IEventBus modEventBus = FMLJavaModLoadingContext.get().getModEventBus();
+
+        // Note: no item registration here anymore, it's done via the RegistryEvent in ItemInit
 
         // Register setup method for modloading
         modEventBus.addListener(this::setup);
@@ -72,7 +84,7 @@ public class CustomConsumables {
     /**
      * Event handler to notify players when they join about the mod
      */
-    @Mod.EventBusSubscriber(modid = MOD_ID)
+    @Mod.EventBusSubscriber(modid = "customconsumables")
     public static class PlayerEvents {
         @SubscribeEvent
         public static void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
@@ -82,31 +94,6 @@ public class CustomConsumables {
                         new StringTextComponent(TextFormatting.GREEN + "CustomConsumables mod is active!"),
                         event.getPlayer().getUUID()
                 );
-
-                // Let them know which items we've replaced
-                if (ItemInit.LEGENDARY_EGG != null) {
-                    event.getPlayer().sendMessage(
-                            new StringTextComponent(TextFormatting.GOLD + "Replaced " +
-                                    ItemInit.LEGENDARY_EGG.getRegistryName() + " with Legendary Egg (0.5% chance to spawn legendary)"),
-                            event.getPlayer().getUUID()
-                    );
-                }
-
-                if (ItemInit.SHINY_EGG != null) {
-                    event.getPlayer().sendMessage(
-                            new StringTextComponent(TextFormatting.AQUA + "Replaced " +
-                                    ItemInit.SHINY_EGG.getRegistryName() + " with Shiny Egg (35% chance to spawn shiny)"),
-                            event.getPlayer().getUUID()
-                    );
-                }
-
-                if (ItemInit.XXL_EXP_CANDY != null) {
-                    event.getPlayer().sendMessage(
-                            new StringTextComponent(TextFormatting.LIGHT_PURPLE + "Replaced " +
-                                    ItemInit.XXL_EXP_CANDY.getRegistryName() + " with XXL Exp. Candy (100,000 exp points)"),
-                            event.getPlayer().getUUID()
-                    );
-                }
 
                 // Check for active Pixelmon
                 if (ModList.get().isLoaded("pixelmon")) {

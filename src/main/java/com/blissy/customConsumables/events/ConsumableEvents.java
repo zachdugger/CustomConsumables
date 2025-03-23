@@ -40,7 +40,7 @@ public class ConsumableEvents {
 
                 player.sendMessage(
                         new StringTextComponent(TextFormatting.YELLOW +
-                                "Available items: Legendary Egg, Shiny Egg, XXL Exp. Candy"),
+                                "Available items: Legendary Potion, Shiny Potion, XXL Exp. Candy"),
                         player.getUUID()
                 );
             }
