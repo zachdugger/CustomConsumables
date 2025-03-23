@@ -44,15 +44,15 @@ public class VanillaItemHandler {
     private static final int EXP_AMOUNT = 100000; // Experience points to add
 
     /**
-     * Create proper lore list for item tooltips
+     * Create proper lore list for item tooltips that works with Minecraft 1.16.5
      */
     private static ListNBT createLoreList(List<String> loreLines) {
         ListNBT loreList = new ListNBT();
 
         for (String line : loreLines) {
-            CompoundNBT lineTag = new CompoundNBT();
-            lineTag.putString("text", line);
-            loreList.add(lineTag);
+            // Create a properly formatted JSON text component for each line
+            String jsonText = "{\"text\":\"" + line + "\"}";
+            loreList.add(StringNBT.valueOf(jsonText));
         }
 
         return loreList;
@@ -72,10 +72,18 @@ public class VanillaItemHandler {
         // Custom Potion Color (Gold/Yellow)
         display.putInt("CustomPotionColor", 0xFFD700);
 
-        // Add lore as proper list
+        // Add enhanced lore as proper list
         List<String> loreLines = new ArrayList<>();
-        loreLines.add(TextFormatting.YELLOW + "Has a " + TextFormatting.GREEN + LEGENDARY_SPAWN_CHANCE + "%" + TextFormatting.YELLOW + " chance to spawn a legendary Pokémon");
-        loreLines.add(TextFormatting.ITALIC + "" + TextFormatting.GRAY + "Drink the potion to try your luck!");
+        loreLines.add(TextFormatting.GOLD + "== Legendary Pokémon Summoner ==");
+        loreLines.add(TextFormatting.YELLOW + "Has a " + TextFormatting.GREEN + LEGENDARY_SPAWN_CHANCE + "%" +
+                TextFormatting.YELLOW + " chance to spawn a legendary Pokémon");
+        loreLines.add("");
+        loreLines.add(TextFormatting.AQUA + "Usage: " + TextFormatting.WHITE + "Right-click to drink");
+        loreLines.add(TextFormatting.GRAY + "When successful, spawns a random legendary");
+        loreLines.add(TextFormatting.GRAY + "Pokémon nearby to be caught");
+        loreLines.add("");
+        loreLines.add(TextFormatting.ITALIC + "" + TextFormatting.GOLD + "\"A mysterious potion that lures");
+        loreLines.add(TextFormatting.ITALIC + "" + TextFormatting.GOLD + "legendary Pokémon to your location.\"");
 
         // Create a proper lore NBT list
         display.put("Lore", createLoreList(loreLines));
@@ -102,10 +110,18 @@ public class VanillaItemHandler {
         // Custom Potion Color (Aqua/Cyan)
         display.putInt("CustomPotionColor", 0x55FFFF);
 
-        // Add lore as proper list
+        // Add enhanced lore as proper list
         List<String> loreLines = new ArrayList<>();
-        loreLines.add(TextFormatting.YELLOW + "Has a " + TextFormatting.GREEN + SHINY_SPAWN_CHANCE + "%" + TextFormatting.YELLOW + " chance to spawn a shiny Pokémon");
-        loreLines.add(TextFormatting.ITALIC + "" + TextFormatting.GRAY + "Drink the potion to try your luck!");
+        loreLines.add(TextFormatting.AQUA + "== Shiny Pokémon Attractor ==");
+        loreLines.add(TextFormatting.YELLOW + "Has a " + TextFormatting.GREEN + SHINY_SPAWN_CHANCE + "%" +
+                TextFormatting.YELLOW + " chance to spawn a shiny Pokémon");
+        loreLines.add("");
+        loreLines.add(TextFormatting.AQUA + "Usage: " + TextFormatting.WHITE + "Right-click to drink");
+        loreLines.add(TextFormatting.GRAY + "When successful, attracts a random shiny");
+        loreLines.add(TextFormatting.GRAY + "Pokémon to your location");
+        loreLines.add("");
+        loreLines.add(TextFormatting.ITALIC + "" + TextFormatting.AQUA + "\"Gleaming with an otherworldly");
+        loreLines.add(TextFormatting.ITALIC + "" + TextFormatting.AQUA + "shimmer that draws shiny Pokémon.\"");
 
         // Create a proper lore NBT list
         display.put("Lore", createLoreList(loreLines));
@@ -128,10 +144,19 @@ public class VanillaItemHandler {
         nbt.putString(CUSTOM_ITEM_TAG, XXL_EXP_CANDY);
         stack.setHoverName(new StringTextComponent(TextFormatting.LIGHT_PURPLE + "XXL Exp. Candy"));
 
-        // Add lore as proper list
+        // Add enhanced lore as proper list
         List<String> loreLines = new ArrayList<>();
-        loreLines.add(TextFormatting.YELLOW + "Gives " + TextFormatting.GOLD + EXP_AMOUNT + TextFormatting.YELLOW + " experience points to a Pokémon");
-        loreLines.add(TextFormatting.ITALIC + "" + TextFormatting.GRAY + "Right-click directly on a sent-out Pokémon");
+        loreLines.add(TextFormatting.LIGHT_PURPLE + "== Massive Experience Boost ==");
+        loreLines.add(TextFormatting.YELLOW + "Gives " + TextFormatting.GOLD + EXP_AMOUNT +
+                TextFormatting.YELLOW + " experience points to a Pokémon");
+        loreLines.add(TextFormatting.GRAY + "Can provide approximately 5-8 levels");
+        loreLines.add(TextFormatting.GRAY + "depending on the Pokémon's current level");
+        loreLines.add("");
+        loreLines.add(TextFormatting.AQUA + "Usage: " + TextFormatting.WHITE + "Right-click directly on a");
+        loreLines.add(TextFormatting.WHITE + "sent-out Pokémon to apply experience");
+        loreLines.add("");
+        loreLines.add(TextFormatting.ITALIC + "" + TextFormatting.LIGHT_PURPLE + "\"A special candy infused with enormous");
+        loreLines.add(TextFormatting.ITALIC + "" + TextFormatting.LIGHT_PURPLE + "amounts of concentrated experience.\"");
 
         // Create a proper lore NBT list
         CompoundNBT display = stack.getOrCreateTagElement("display");
