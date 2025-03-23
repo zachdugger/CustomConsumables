@@ -1,46 +1,67 @@
-Custom Consumables
-A Minecraft Forge mod that adds special consumable items for enhancing Pixelmon gameplay.
+GemExtension for TokenManager
+GemExtension is an addon plugin for TokenManager that adds a second currency called "gems" to your server.
 Features
-This mod adds several consumable items that enhance various aspects of Pokémon spawning:
 
-Legendary Lure: 1% chance to spawn a legendary in the server
-Shiny Charm: X percentage to instantly spawn a shiny on your player
-XXL Candy: Right click to give a pokemon 100,000 experience.
+Second currency system that works alongside TokenManager
+Full command set for managing gems
+Admin commands for giving, taking, and setting gem balances
+Top gems leaderboard
+Permission-based access to commands
+Configurable settings
+
 Requirements
 
-Minecraft 1.16.5
-Forge 36.1.0+
-Pixelmon Reforged 9.1.0+
-
-Building from Source
-
-Clone this repository
-Run the following command:
-Copy./gradlew build
-
-The built JAR file will be in build/libs/customconsumables-1.0.jar
+Spigot/Paper 1.13+
+TokenManager plugin installed and configured
 
 Installation
 
-Install Minecraft Forge for Minecraft 1.16.5
-Install Pixelmon Reforged 9.1.0+
-Place the customconsumables-1.0.jar file into your mods folder
-Launch Minecraft
+Make sure TokenManager is installed and working properly
+Download the GemExtension.jar file
+Place the jar file in your server's plugins folder
+Restart your server
+Configure the plugin in the plugins/GemExtension/config.yml file
 
-Usage
-Each item can be crafted using the included recipes. Right-click while holding an item to use it.
-Development Notes
-This mod uses a soft dependency approach to Pixelmon integration:
+Commands
+Player Commands
 
-We don't directly reference Pixelmon classes at compile time
-We use NBT data to store effects that Pixelmon can read
-The mod will work even without Pixelmon, but the effects will only function when Pixelmon is present
+/gem - Show your gem balance
+/gem balance [player] - Check gem balance
+/gem send <player> <amount> - Send gems to another player
+/gem top - View top gem holders
+/gem help - Show help information
 
-To add actual Pixelmon integration, you would:
+Admin Commands
 
-Add Pixelmon as a development dependency
-Implement proper event handlers for Pixelmon events
-Update the PixelmonCompat class to use actual Pixelmon API calls
+/gemadmin give <player> <amount> - Give gems to a player
+/gemadmin take <player> <amount> - Take gems from a player
+/gemadmin set <player> <amount> - Set a player's gem balance
+/gemadmin reload - Reload the configuration
+/gemadmin update - Force update the top gems list
 
+Permissions
+
+gemextension.use - Access to basic gem commands
+gemextension.balance - Check own gem balance
+gemextension.balance.others - Check other players' gem balances
+gemextension.send - Send gems to other players
+gemextension.top - View top gem holders
+gemextension.top.self - View own rank in top gems
+gemextension.admin - Access to admin commands
+
+Configuration
+The plugin's configuration can be modified in the config.yml file:
+yamlCopy# Default gem balance for new players
+default-balance: 10
+
+# Send command limits
+send-amount-limit:
+  min: 1        # Minimum amount that can be sent
+  max: 1000     # Maximum amount that can be sent (0 for no limit)
+
+# Top gems list update interval (minutes)
+balance-top-update-interval: 5
+Support
+If you encounter any issues or have questions, please open an issue on the GitHub repository.
 License
-All rights reserved
+GemExtension is released under the MIT License. See the LICENSE file for details.
