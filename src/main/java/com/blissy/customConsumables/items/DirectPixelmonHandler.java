@@ -156,10 +156,10 @@ public class DirectPixelmonHandler {
                     new StringTextComponent(TextFormatting.LIGHT_PURPLE + "XXL Exp. Candy: " +
                             TextFormatting.GREEN + pokemon.getDisplayName() + " gained " +
                             TextFormatting.GOLD + EXP_AMOUNT + TextFormatting.GREEN + " experience points!"),
-                    false  // Change from true to false to display in chat instead of action bar
+                    true  // true = display in action bar instead of chat
             );
 
-// Add level up message if level changed
+            // Add level up message if level changed
             if (newLevel > oldLevel) {
                 int levelsGained = newLevel - oldLevel;
                 player.displayClientMessage(
@@ -169,7 +169,7 @@ public class DirectPixelmonHandler {
                                 (levelsGained > 1 ? levelsGained + " levels" : "a level") +
                                 " to level " +
                                 TextFormatting.YELLOW + newLevel + "!"),
-                        false  // Change from true to false to display in chat instead of action bar
+                        true  // true = display in action bar instead of chat
                 );
             } else {
                 // Let player know this may need more exp for level up
@@ -177,7 +177,7 @@ public class DirectPixelmonHandler {
                         new StringTextComponent(TextFormatting.LIGHT_PURPLE + "XXL Exp. Candy: " +
                                 TextFormatting.GRAY + "Experience stored! " +
                                 pokemon.getDisplayName() + " needs more experience to level up."),
-                        false  // Change from true to false to display in chat instead of action bar
+                        true  // true = display in action bar instead of chat
                 );
             }
 

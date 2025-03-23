@@ -195,31 +195,8 @@ public class VanillaItemHandler {
                 event.setCanceled(true);
                 break;
             case XXL_EXP_CANDY:
-                // Only show the instruction message if player is not looking at an entity
-                // This prevents the instruction message from showing when successfully using on a Pokémon
-                net.minecraft.util.math.RayTraceResult result = player.pick(20.0D, 0.0F, false);
-                boolean lookingAtEntity = result.getType() == net.minecraft.util.math.RayTraceResult.Type.ENTITY;
-
-                if (!lookingAtEntity) {
-                    // Show instruction message only when not targeting an entity
-                    player.displayClientMessage(
-                            new StringTextComponent(TextFormatting.LIGHT_PURPLE + "XXL Exp. Candy: " +
-                                    TextFormatting.YELLOW + "Right-click directly on a sent-out Pokémon to give it experience!"),
-                            false
-                    );
-
-                    // Play a sound to draw attention to the message
-                    player.level.playSound(
-                            null,
-                            player.getX(),
-                            player.getY(),
-                            player.getZ(),
-                            SoundEvents.UI_BUTTON_CLICK,
-                            SoundCategory.PLAYERS,
-                            0.5F,
-                            1.0F
-                    );
-                }
+                // Don't show any message here, instead rely on the EntityInteract event
+                // This prevents duplicate messages from appearing
                 break;
         }
     }
@@ -244,7 +221,37 @@ public class VanillaItemHandler {
             ServerPlayerEntity player = (ServerPlayerEntity) event.getPlayer();
             Entity target = event.getTarget();
 
-            if (handleXXLExpCandy(player, target, stack)) {
+            // If not successfully handled (e.g., not a valid target), show instructions
+            if (!handleXXLExpCandy(player, target, stack)) {
+                showXXLExpCandyInstructions(player);
+            }
+
+            // Cancel the event regardless to prevent default behavior
+            event.setCanceled(true);
+        }
+    }
+
+    @SubscribeEvent
+    public static void onItemRightClick(net.minecraftforge.event.entity.player.PlayerInteractEvent.RightClickEmpty event) {
+        // This is called when a player right-clicks in the air (no block or entity)
+        ItemStack stack = event.getItemStack();
+
+        if (!isCustomConsumable(stack)) {
+            return;
+        }
+
+        if (event.getWorld().isClientSide()) {
+            return; // Only process on server side
+        }
+
+        String itemType = getCustomConsumableType(stack);
+
+        // Only handle XXL Exp Candy here
+        if (itemType.equals(XXL_EXP_CANDY)) {
+            if (event.getPlayer() instanceof ServerPlayerEntity) {
+                ServerPlayerEntity player = (ServerPlayerEntity) event.getPlayer();
+                // Show instructions when right-clicking in the air
+                showXXLExpCandyInstructions(player);
                 event.setCanceled(true);
             }
         }
@@ -432,4 +439,29 @@ public class VanillaItemHandler {
         }
 
         return success;
-    }}
+    }
+
+    /**
+     * Shows the instruction message when the player right-clicks with an XXL Exp Candy
+     * but not on a valid target
+     */
+    private static void showXXLExpCandyInstructions(ServerPlayerEntity player) {
+        player.displayClientMessage(
+                new StringTextComponent(TextFormatting.LIGHT_PURPLE + "XXL Exp. Candy: " +
+                        TextFormatting.YELLOW + "Right-click directly on a sent-out Pokémon to give it experience!"),
+                true  // true = display in action bar instead of chat
+        );
+
+        // Play a sound to draw attention to the message
+        player.level.playSound(
+                null,
+                player.getX(),
+                player.getY(),
+                player.getZ(),
+                SoundEvents.UI_BUTTON_CLICK,
+                SoundCategory.PLAYERS,
+                0.5F,
+                1.0F
+        );
+    }
+}
