@@ -1,14 +1,15 @@
 modLoader="javafml"
 loaderVersion="[36,)"
 license="All rights reserved"
-# Setting this to SERVER will make it a server-side only mod
-side="SERVER"
+# Setting this to BOTH allows clients without the mod to connect
+side="BOTH"
 
 [[mods]]
 modId="customconsumables"
 version="1.0.0"
 displayName="Custom Pixelmon Consumables"
-logoFile="examplemod.png"
+# Remove the logo reference or create the file
+# logoFile="examplemod.png"
 authors="Blissy"
 description='''
 Adds custom consumable items to Pixelmon.
@@ -24,18 +25,18 @@ modId="forge"
 mandatory=true
 versionRange="[36,)"
 ordering="NONE"
-side="SERVER" # Changed from BOTH to SERVER
+side="BOTH"
 
 [[dependencies.customconsumables]]
 modId="minecraft"
 mandatory=true
 versionRange="[1.16.5]"
 ordering="NONE"
-side="SERVER" # Changed from BOTH to SERVER
+side="BOTH"
 
 [[dependencies.customconsumables]]
 modId="pixelmon"
 mandatory=true
 versionRange="[9.1.0,)"
 ordering="AFTER"
-side="SERVER" # Changed from BOTH to SERVER
+side="BOTH"
