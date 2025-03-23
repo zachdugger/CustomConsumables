@@ -18,20 +18,27 @@ repositories {
         url = 'https://hub.spigotmc.org/nexus/content/repositories/snapshots/'
     }
 
+    // Paper repository
+    maven {
+        url = 'https://papermc.io/repo/repository/maven-public/'
+    }
+
     // For other Bukkit-related dependencies
     maven { url = 'https://oss.sonatype.org/content/repositories/snapshots' }
     maven { url = 'https://oss.sonatype.org/content/repositories/central' }
 }
 
 dependencies {
-    // Reference the PaperMC server JAR for Bukkit/Spigot APIs
-    compileOnly files('libs/PaperMC-1.20.4.jar')
+    // Use an older version of Spigot API that's compatible with Java 11
+    compileOnly 'org.spigotmc:spigot-api:1.16.5-R0.1-SNAPSHOT'
 
-    // TokenManager dependency
     compileOnly files('libs/TokenManager-3.2.8.jar')
 }
 
 processResources {
+    // Set duplicates strategy to handle duplicates
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
+
     // Include plugin.yml and config files
     from('src/main/resources') {
         include 'plugin.yml'

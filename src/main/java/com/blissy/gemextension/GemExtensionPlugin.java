@@ -1,10 +1,8 @@
 package com.blissy.gemextension;
 
-import me.realized.tokenmanager.api.event.TokenManager;
+import me.realized.tokenmanager.api.TokenManager;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
-import org.bukkit.command.Command;
-import org.bukkit.command.CommandSender;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.entity.Player;
@@ -16,7 +14,6 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -32,6 +29,8 @@ public class GemExtensionPlugin extends JavaPlugin implements Listener {
     private FileConfiguration dataConfig;
     private int defaultBalance;
     private String prefix;
+    private GemConfig gemConfig;
+    private GemDataManager gemDataManager;
 
     @Override
     public void onEnable() {
@@ -40,6 +39,9 @@ public class GemExtensionPlugin extends JavaPlugin implements Listener {
 
         // Load configuration
         loadConfig();
+
+        // Initialize GemConfig
+        gemConfig = new GemConfig(this);
 
         // Setup data file
         setupDataFile();
@@ -51,12 +53,16 @@ public class GemExtensionPlugin extends JavaPlugin implements Listener {
             return;
         }
 
+        // Initialize GemDataManager
+        gemDataManager = new GemDataManager(this);
+
         // Register commands
         getCommand("gem").setExecutor(new GemCommand(this));
         getCommand("gemadmin").setExecutor(new GemAdminCommand(this));
 
         // Register listeners
         getServer().getPluginManager().registerEvents(this, this);
+        getServer().getPluginManager().registerEvents(new GemListener(this), this);
 
         // Schedule auto-save
         Bukkit.getScheduler().runTaskTimerAsynchronously(this, this::saveAllData, 6000L, 6000L);
@@ -245,5 +251,24 @@ public class GemExtensionPlugin extends JavaPlugin implements Listener {
     public void reloadGemConfig() {
         reloadConfig();
         loadConfig();
+        if (gemConfig != null) {
+            gemConfig.reloadConfig();
+        }
+    }
+
+    /**
+     * Get the GemConfig instance
+     * @return GemConfig instance
+     */
+    public GemConfig getGemConfig() {
+        return gemConfig;
+    }
+
+    /**
+     * Get the GemDataManager instance
+     * @return GemDataManager instance
+     */
+    public GemDataManager getGemDataManager() {
+        return gemDataManager;
     }
 }
